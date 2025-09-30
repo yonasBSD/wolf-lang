@@ -7,7 +7,7 @@ mod error_handler;
 
 fn main() {
     
-    let content = "let int message = 2";
+    let content = "let bool message = \"hello world\" print message";
     let tokens = match lexer(&content) {
         Ok(tokens) => {
             tokens

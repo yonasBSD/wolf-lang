@@ -1,4 +1,4 @@
-use std::error;
+use std::{collections::HashMap, error};
 
 use crate::{error_handler::ParseError, tokens::{self, Token}};
 
@@ -8,7 +8,8 @@ pub struct Parser {
     tokens: Vec<Token>,
     pos: usize,
     output: Vec<String>,
-    breakpoint_pos: Option<usize>,
+    symbol_table: HashMap<String, Token>,
+    
 }
 
 impl Parser {
@@ -17,7 +18,7 @@ impl Parser {
             tokens,
             pos: 0,
             output: Vec::new(),
-            breakpoint_pos: None,
+            symbol_table: HashMap::new(),
         }
     }
 
@@ -58,6 +59,9 @@ impl Parser {
     pub fn parse_let(&mut self) -> Result<(), ParseError> {
         self.eat(Token::Let)?;
 
+        let mut var_name: Option<String> = None;
+        let mut assigned_value: Option<Token> = None;
+
         // After `let` → expect type (number/string/bool)
         if let Some(next) = self.current_token() {
             match next {
@@ -83,6 +87,7 @@ impl Parser {
         if let Some(next) = self.current_token() {
             match next {
                 Token::Identifier(name) => {
+                    var_name = Some(name.clone());
                     self.output.push(format!("var {}", name));
                     self.pos += 1;
                 }
@@ -106,9 +111,23 @@ impl Parser {
         if let Some(next) = self.current_token()  {
             match next {
                 Token::Number(n) => {
+                    assigned_value = Some(next.clone());
                     self.output.push(format!("value {}", n));
                     self.pos += 1;
                 }
+
+                Token::String(s) => {
+                    assigned_value = Some(next.clone());
+                    self.output.push(format!("value {}", s));
+                    self.pos += 1;
+                }
+
+                Token::Boolean(b) => {
+                    assigned_value = Some(next.clone());
+                    self.output.push(format!("value {}", b));
+                    self.pos += 1;
+                }
+
                 _ => {
                     return Err(ParseError::UnexpectedToken {
                         expected: Token::Number(0.0),
@@ -117,7 +136,62 @@ impl Parser {
                 }
             }
         }
+        if let (Some(name), Some(value)) = (var_name, assigned_value) {
+            self.symbol_table.insert(name, value);
+            println!("{:?}", self.symbol_table);
+        }
+        Ok(())
+    }
 
+    fn parse_print(&mut self) -> Result<(), ParseError> {
+        self.eat(Token::Print)?;
+        if let Some(next) = self.current_token() {
+            match next {
+                Token::String(s) => {
+                    println!("{:?}", s);
+                    self.output.push(format!("print value: {}", s));
+                    self.pos += 1;
+                }
+
+                Token::Number(n) => {
+                    println!("{:?}", n);
+                    self.output.push(format!("print value: {}", n));
+                    self.pos += 1;
+                }
+
+                Token::Boolean(b) => {
+                    println!("{:?}", b);
+                    self.output.push(format!("print value: {}", b));
+                    self.pos += 1;
+                }
+
+                Token::Identifier(name) => {
+                    if let Some(value_token) = self.symbol_table.get(name)  {
+                        println!("{:?}", value_token);
+                        self.output.push(format!("print var: {} = {:?}", name, value_token));
+                        self.pos += 1;
+                    }
+                    else {
+                        return Err(ParseError::UndeclaredVariable{name: name.to_string()})
+                    }
+                }
+
+                _ => {
+                    return Err(ParseError::UnexpectedToken {
+                        expected: Token::Number(0.0),
+                        found: Some(next.clone()),
+                    })
+                }
+            }
+            
+        }
+        else {
+            // End of tokens after 'print'
+            return Err(ParseError::UnexpectedToken {
+                expected: Token::String("".to_string()),
+                found: None,
+            })
+        }
         Ok(())
     }
 
@@ -125,6 +199,7 @@ impl Parser {
         if let Some(tok) = self.current_token() {
                 match tok {
                     Token::Let => self.parse_let(),
+                    Token::Print => self.parse_print(),
                     _ => {
                         let name = format!("{:?}", tok);
                         self.output.push("unknown".to_string());

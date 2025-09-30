@@ -4,4 +4,5 @@ use crate::tokens::Token;
 pub enum ParseError {
     UnexpectedToken { expected: Token, found: Option<Token> },
     UnkownType { type_name: String},
+    UndeclaredVariable {name: String}
 }
