@@ -6,6 +6,8 @@ mod tokens;
 mod lexer;
 mod parser;
 mod error_handler;
+mod stdlib;
+
 
 #[derive(otherParser, Debug)]
 #[command(author, version, about)]

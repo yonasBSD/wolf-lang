@@ -35,6 +35,7 @@ pub fn lexer(content: &str) -> Result<Vec<Token>, String> {
                 "true" => token.push(Token::Boolean(true)),
                 "false" => token.push(Token::Boolean(false)),
                 "if" => token.push(Token::If),
+                "while" => token.push(Token::While),
                 //other
                 "end" => token.push(Token::EndOfCondition),
                 _ => token.push(Token::Identifier(slice)),
@@ -146,6 +147,21 @@ mod tests {
     fn testLexer()
     {
         let content = "let string message = \"hello world\" let int num = 1 + 1 print message print num if test > >= < <= \"test\" print \"hello world\" end";
+        let tokens = match lexer(&content) {
+            Ok(tokens) => {
+                tokens
+            }
+            Err(err) => {
+                eprintln!("Lexer error: {}", err);
+                return;
+            }
+        };
+        println!("{:?}", tokens)
+    }
+    #[test]
+    fn testLexer2()
+    {
+        let content = "while if";
         let tokens = match lexer(&content) {
             Ok(tokens) => {
                 tokens

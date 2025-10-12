@@ -169,7 +169,7 @@ impl Parser {
 
         if let (Some(name), Some(value)) = (var_name, assigned_value) {
             self.symbol_table.insert(name, value);
-            println!("{:?}", self.symbol_table);
+            
         }
         Ok(())
     }
@@ -341,6 +341,71 @@ impl Parser {
         Ok(())
     }
 
+    fn parse_while(&mut self) -> Result<(), ParseError> {
+        self.eat(Token::While)?;
+        let condition_start_pos = self.pos;
+        
+        let mut end_of_loop_pos: usize; 
+        
+        let mut block_tokens: Vec<Token> = Vec::new();
+        let mut block_pos = self.pos;
+        let mut scope_depth = 1;
+
+        let block_start_pos = {
+            let mut temp_parser = self.clone();
+            temp_parser.parse_condition()?;
+            temp_parser.pos 
+        };
+        let (block_tokens, end_of_loop_pos) = {
+            let mut temp_pos = block_start_pos;
+            let mut scope_depth = 1;
+
+            
+            while let Some(tok) = self.tokens.get(temp_pos) {
+                if *tok == Token::While || *tok == Token::If { 
+                    scope_depth += 1;
+                } else if *tok == Token::EndOfCondition {
+                    scope_depth -= 1;
+                    if scope_depth == 0 {
+                        break; 
+                    }
+                }
+                temp_pos += 1;
+            }
+
+            if scope_depth != 0 {
+                return Err(ParseError::UnexpectedToken {
+                    expected: Token::EndOfCondition,
+                    found: None,
+                });
+            }
+            let tokens: Vec<Token> = self.tokens[block_start_pos..temp_pos].to_vec();
+            (tokens, temp_pos + 1)
+        };
+
+
+        
+        loop {
+            self.pos = condition_start_pos;
+            let condition_result = self.parse_condition()?;
+            if condition_result {
+                let mut block_parser = Parser::new(block_tokens.clone());
+                block_parser.symbol_table = self.symbol_table.clone(); // Copy parent scope
+                while let Some(_) = block_parser.current_token() {
+                    block_parser.sense()?;
+                }
+                self.symbol_table = block_parser.symbol_table;
+                continue;
+            } else {
+                
+                break;
+            }
+        }
+        self.pos = end_of_loop_pos;
+        
+        Ok(())
+    }
+
     fn parse_expr(&mut self) -> Result<Token, ParseError> {
         let mut result = self.parse_term()?; 
 
@@ -483,6 +548,7 @@ impl Parser {
                     Token::Let => self.parse_let(),
                     Token::Print => self.parse_print(),
                     Token::If => self.parse_if(),
+                    Token::While => self.parse_while(),
                     _ => {
                         let name = format!("{:?}", tok);
                         self.output.push("unknown".to_string());
