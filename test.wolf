@@ -21,3 +21,7 @@ end
 if condition == true
     print "hello there"
 end
+
+while 1 < 2
+    print "barhana götten"
+end

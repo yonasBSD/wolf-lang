@@ -1,0 +1,25 @@
+print "Asal sayi bulucu baslatiliyor..."
+
+for int n = 2 range 31
+
+    let bool is_prime = true
+    let int i = 2
+
+    while i < n
+    
+        let int check = (n / i) * i
+
+        if check == n
+            is_prime = false
+        end
+
+        i = i + 1
+    end
+
+    if is_prime == true
+        print n, " bir asal sayidir."
+    end
+
+end
+
+print "Arama bitti."

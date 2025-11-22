@@ -11,7 +11,7 @@ pub enum Token {
 
     // Identifiers and literals
     Identifier(String),
-    Number(f64),
+    Number(i64),
     String(String),
     Boolean(bool),
 
@@ -43,6 +43,7 @@ pub enum Token {
 
     // other
     EndOfCondition,
-    Semicolon,
+    Range,
+    Comma,
     EOF,
 }

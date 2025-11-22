@@ -1,0 +1,9 @@
+let int I = 1
+let int toplam = 0
+
+while I != 10
+    let bool a = true
+    toplam = toplam + I
+    I = I + 1
+    print toplam, I, 1, 1, 2, "aaaa", false, 111
+end

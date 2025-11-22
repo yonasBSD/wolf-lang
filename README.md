@@ -42,6 +42,14 @@ while counter < 3
 end
 ```
 
+**For loop**
+
+```rust
+for int i = 1 range 10
+   print "hello world"
+end
+```
+
 ## Planned Features
 - Control flow: `if`, `while`, `for`
 - User-defined functions and lexical scoping

@@ -1,6 +1,4 @@
-use std::string::ParseError;
-
-use crate::tokens::{self, Token};
+use crate::tokens::{ Token};
 
 pub fn lexer(content: &str) -> Result<Vec<Token>, String> {
     let mut token: Vec<Token> = Vec::new();
@@ -36,6 +34,8 @@ pub fn lexer(content: &str) -> Result<Vec<Token>, String> {
                 "false" => token.push(Token::Boolean(false)),
                 "if" => token.push(Token::If),
                 "while" => token.push(Token::While),
+                "for" => token.push(Token::For),
+                "range" => token.push(Token::Range),
                 //other
                 "end" => token.push(Token::EndOfCondition),
                 _ => token.push(Token::Identifier(slice)),
@@ -52,7 +52,7 @@ pub fn lexer(content: &str) -> Result<Vec<Token>, String> {
                 i += 1;
             }
             let slice: String = chars[start..i].iter().collect();
-            let value: f64 = slice.parse().map_err(|_| format!("Invalid number: {}", slice))?;
+            let value: i64 = slice.parse().map_err(|_| format!("Invalid number: {}", slice))?;
             token.push(Token::Number(value));
             continue;
         }
@@ -127,7 +127,7 @@ pub fn lexer(content: &str) -> Result<Vec<Token>, String> {
             ')' => { token.push(Token::RParen); i += 1; continue; }
             '{' => { token.push(Token::LBrace); i += 1; continue; }
             '}' => { token.push(Token::RBrace); i += 1; continue; }
-            ';' => { token.push(Token::Semicolon); i += 1; continue; }
+            ',' => { token.push(Token::Comma); i += 1; continue; }
             _ => {}
         }
 
