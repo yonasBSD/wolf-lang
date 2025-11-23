@@ -41,6 +41,9 @@ pub enum Token {
     LesserEquals,
     NotEquals,
 
+    //Functions
+    Func,
+
     // other
     EndOfCondition,
     Range,

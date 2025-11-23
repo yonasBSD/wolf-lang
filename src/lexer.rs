@@ -35,6 +35,7 @@ pub fn lexer(content: &str) -> Result<Vec<Token>, String> {
                 "if" => token.push(Token::If),
                 "while" => token.push(Token::While),
                 "for" => token.push(Token::For),
+                "fn" => token.push(Token::Func),
                 "range" => token.push(Token::Range),
                 //other
                 "end" => token.push(Token::EndOfCondition),

@@ -1,16 +1,23 @@
-use std::{collections::HashMap, ptr::null, thread::Scope};
+use std::{collections::HashMap, ptr::null, thread::Scope, vec};
 
 use crate::{error_handler::ParseError, tokens::{self, Token}};
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Function {
+    pub name: String,
+    pub params: Vec<String>,
+    pub body: Vec<Token>,
+}
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Parser {
     tokens: Vec<Token>,
     pos: usize,
     output: Vec<String>,
     // A stack of HashMaps to manage variable scopes.
     // The last HashMap in the Vec is the innermost (current) scope.
-    scopes: Vec<HashMap<String, Token>>, 
+    scopes: Vec<HashMap<String, Token>>,
+    functions: HashMap<String, Function>,
 }
 
 impl Parser {
@@ -21,6 +28,7 @@ impl Parser {
             output: Vec::new(),
             // Initialize with one, global scope.
             scopes: vec![HashMap::new()],
+            functions: HashMap::new(),
         }
     }
 
@@ -458,6 +466,8 @@ impl Parser {
             // Give it a *copy* of the current scopes (so it can read outer variables).
             block_parser.scopes = self.scopes.clone(); 
            
+            block_parser.functions = self.functions.clone();
+
             // Parse all statements inside the block.
             while let Some(_) = block_parser.current_token() {
                 block_parser.sense()?;
@@ -514,7 +524,9 @@ impl Parser {
                 // Create a new parser for the block tokens.
                 let mut block_parser = Parser::new(block_tokens.clone());
                 block_parser.scopes = self.scopes.clone(); // Give it current scopes
-            
+                
+                block_parser.functions = self.functions.clone();
+
                 // Parse all statements in the block.
                 while let Some(_) = block_parser.current_token() {
                     block_parser.sense()?;
@@ -548,7 +560,6 @@ impl Parser {
         match self.current_token() {
             Some(Token::TypeNumber) => {
                 self.eat(Token::TypeNumber)?; 
-                
             }
 
             Some(tok) => {
@@ -609,6 +620,8 @@ impl Parser {
             let mut block_parser = Parser::new(block_tokens.clone());
             block_parser.scopes = self.scopes.clone();
 
+            block_parser.functions = self.functions.clone();
+
             while let Some(_) = block_parser.current_token() {
                 
                 block_parser.sense()?;
@@ -624,6 +637,41 @@ impl Parser {
 
         Ok(())
 
+    }
+    
+    fn parse_fn(&mut self) -> Result<(), ParseError> {
+        self.eat(Token::Func)?;
+
+        let name = match self.current_token() {
+            Some(Token::Identifier(n)) => n.clone(),
+            _ => return Err(ParseError::UnexpectedToken { expected: Token::Identifier("identifier".to_string()), found: self.current_token().cloned() }),
+        };
+        self.pos += 1;
+
+        self.eat(Token::LParen)?;
+
+        let mut params = Vec::new();
+        while let Some(Token::Identifier(param_name)) = self.current_token() {
+            params.push(param_name.clone());
+            self.pos += 1;
+            if let Some(Token::Comma) = self.current_token() {
+                self.pos += 1;
+            }
+            else {
+                break;
+            }
+        }
+
+        self.eat(Token::RParen)?;
+
+        let (body_tokens, end_pos) = self.find_loop_block(self.pos)?;
+
+        let func = Function {name: name.clone(), params, body: body_tokens};
+        self.functions.insert(name, func);
+
+        self.pos = end_pos;
+
+        Ok(())
     }
 
     /// Parses an expression (handles addition and subtraction).
@@ -798,6 +846,67 @@ impl Parser {
        
     }
 
+    fn parse_function_call(&mut self, name: &str) -> Result<Token, ParseError>
+    {
+        // identifier ve parantezi tüketiyor
+        self.eat(Token::Identifier(name.to_string()))?;
+        self.eat(Token::LParen)?;
+        
+        //argümanları (fonksiyon touple sindeki) token olarak alıyor
+        let mut args: Vec<Token> = Vec::new();
+
+        // mevcut token parantez kapatma ise argümanların değerini args listesine ekliyor, virgül var ise virgülü yiyip loopa devam ediyor yoksa işlemi bitiriyor
+        if self.current_token() != Some(&Token::RParen) {
+            loop {
+                let arg_value = self.parse_expr()?;
+                args.push(arg_value);
+
+                if let Some(Token::Comma) = self.current_token() {
+                    self.eat(Token::Comma)?;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        //parantez tüketme
+        self.eat(Token::RParen)?;
+
+        // fonksiyon ismi hashmap e kayıtlıysa func değişkenini atıyor değil ise hata veriyor
+        let func = match self.functions.get(name) {
+            Some(f) => f.clone(),
+            None => return Err(ParseError::UndeclaredVariable { name: name.to_string() }),
+        };
+
+        //fonksiyon scopesini oluşturuyor
+        let mut func_scope = HashMap::new();
+
+        //fonksiyon ismi ve argümanları scope ye atıyor
+        for (param_name, arg_value) in func.params.iter().zip(args.into_iter()) {
+            func_scope.insert(param_name.clone(), arg_value);
+        }
+
+        //fonksiyon için yeni bir parser oluşturuyor
+        let mut func_parser = Parser::new(func.body);
+
+        //global scope leri func scopesine ekliyor global scope yoksa sadece func
+        if let Some(global_scope) = self.scopes.first() {
+            func_parser.scopes = vec![global_scope.clone(), func_scope];
+        } else {
+            func_parser.scopes = vec![func_scope];
+        }
+
+        //bu kısmı anlayamadım
+        func_parser.functions = self.functions.clone();
+        while func_parser.current_token().is_some() {
+            func_parser.sense()?;
+        }
+
+        //değeri bool olarak döndürüyor
+        Ok(Token::Boolean(true))
+
+    }
+
     /// The main dispatch function. It "senses" what the current token is
     /// and dispatches to the correct parsing function for that statement.
     pub fn sense(&mut self) -> Result<(), ParseError> {
@@ -812,13 +921,21 @@ impl Parser {
                     // Statement starts with 'while'.
                     Token::While => self.parse_while(),
                     Token::For => self.parse_for(),
+                    Token::Func => self.parse_fn(),
                     // Statement starts with an identifier.
                     Token::Identifier(name) => {
+                        let name_clone = name.clone();
                         // We must "peek" to see what comes next.
                         if let Some(Token::Assign) = self.peek() {
                             // If it's 'Identifier' followed by '=', it's an assignment.
-                            self.parse_assigment() // Typo: parse_assignment
-                        } else {
+                            self.parse_assigment(); // Typo: parse_assignment
+                            Ok(())
+                        } 
+                        else if let Some(Token::LParen) = self.peek() {
+                            self.parse_function_call(&name_clone)?;
+                            Ok(())
+                        } 
+                        else {
                             // An identifier by itself is not a valid statement.
                             Err(ParseError::UnkownType { type_name: format!("Unexpected token after identifier: {:?}", self.peek()) })
                         }

@@ -1,0 +1,32 @@
+fn yazdir_ve_kontrol(sayi)
+    print "Su anki sayi:", sayi
+    if sayi > 50
+        print "-> Bu sayi 50den buyuk!"
+    end
+    if sayi <= 50
+        print "-> Bu sayi kucuk..."
+    end
+end
+
+fn geri_sayim(n)
+    print "Sayac:", n
+    if n > 0
+        let int yeni_n = n - 1
+        geri_sayim(yeni_n)
+    end
+    if n == 0
+        print "BUM! Dongu bitti."
+    end
+end
+
+print "--- TEST 1: Dongu ve Fonksiyon ---"
+let int i = 0
+while i < 3
+    let int deger = i * 25
+    yazdir_ve_kontrol(deger)
+    i = i + 1
+end
+
+print " "
+print "--- TEST 2: Recursion (Ozyineleme) ---"
+geri_sayim(3)
