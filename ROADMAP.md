@@ -6,7 +6,7 @@ The core of the language, reasoning capabilities, and memory management.
 - [x] **Function Call (`call`):** Executes functions like `add()`.
 - [x] **Parameter Passing:** Passing values like `(x, y)` into functions.
 - [x] **Scope & Recursion:** Self-calling functions support (Fibonacci Test ✅).
-- [ ] **`return` Statement:** Returning values from functions (Current Task 🛑).
+- [x] **`return` Statement:** Returning values from functions (Current Task 🛑).
 - [ ] **Stress Testing:** Pushing the parser limits with edge cases.
 
 ## 📅 Week 2: Memory & Data
@@ -19,7 +19,7 @@ Transitioning from single values to lists and data structures.
 ## 📅 Week 3: Communication (Input/Output)
 Enabling the language to interact with the outside world.
 - [ ] **Native Functions:** Embedding Rust-based `input()` function.
-- [ ] **String Operations:** String concatenation (`"Hello " + name`).
+- [x] **String Operations:** String concatenation (`"Hello " + name`).
 - [ ] **Comments:** Ignoring lines starting with `//` in Lexer.
 - [ ] **Game Demo:** "Number Guessing Game" (Testing Input and If/Else logic).
 

@@ -6,4 +6,5 @@ pub enum ParseError {
     UnkownType { type_name: String},
     UndeclaredVariable {name: String},
     TypeMismatch {expected: Token, found: Token},
+    Return { value: Token},
 }

@@ -179,53 +179,13 @@ impl Parser {
         // After identifier → expect '='
         self.eat(Token::Assign)?;
 
-        // The value parsing depends on the declared type.
-        if let Some(decl_ty) = declared_type.as_ref() {
-            if *decl_ty == Token::TypeNumber {
-                // Call the expression parser to handle operations like '5 + 10'
-                match self.parse_expr()? {
-                    Token::Number(result) => {
-                        assigned_value = Some(Token::Number(result));
-                        self.output.push(format!("value (expression result) {}", result));
-                    }
-                    _ => {
-                        return Err(ParseError::TypeMismatch {
-                            expected: Token::TypeNumber,
-                            found: Token::Boolean(false), // placeholder
-                        })
-                    }
-                }
-            // For other types, we currently only support literal values.
-            } else if let Some(next) = self.current_token() {
-                match next {
-                    Token::String(s) => {
-                        assigned_value = Some(next.clone());
-                        self.output.push(format!("value {}", s));
-                        self.pos += 1; // consume string
-                    }
-                    Token::Boolean(b) => {
-                        assigned_value = Some(next.clone());
-                        self.output.push(format!("value {}", b));
-                        self.pos += 1; // consume boolean
-                    }
-                    _ => {
-                        return Err(ParseError::UnexpectedToken {
-                            expected: Token::String("literal or expression".to_string()),
-                            found: Some(next.clone()),
-                        })
-                    }
-                }
-            } else {
-                return Err(ParseError::UnexpectedToken {
-                    expected: Token::String("literal or expression".to_string()),
-                    found: None,
-                })
-            }
-        }
+        let assigned_value = self.parse_expr()?;
+
+
 
         // Check if type and value matches or not 
-        if let (Some(decl_ty), Some(val_tok)) = (declared_type.as_ref(), assigned_value.as_ref()) {
-            let matches = match (decl_ty, val_tok) {
+        if let Some(decl_ty) = declared_type.as_ref() {
+            let matches = match (decl_ty, &assigned_value) {
                 (Token::TypeBool, Token::Boolean(_)) => true,
                 (Token::TypeNumber, Token::Number(_)) => true,
                 (Token::TypeString, Token::String(_)) => true,
@@ -236,14 +196,14 @@ impl Parser {
             if !matches {
                 return Err(ParseError::TypeMismatch {
                     expected: decl_ty.clone(),
-                    found: val_tok.clone(),
+                    found: assigned_value.clone(),
                 });
             }
         }
 
         // If all parts are parsed successfully, define the variable in the current scope.
-        if let (Some(name), Some(value)) = (var_name, assigned_value) {
-            self.define_variable(name, value); 
+        if let Some(name) = var_name {
+            self.define_variable(name, assigned_value); 
         }
         Ok(())
     }
@@ -674,6 +634,12 @@ impl Parser {
         Ok(())
     }
 
+    fn parse_return(&mut self) -> Result<(), ParseError>{
+        self.eat(Token::Return)?;
+        let value = self.parse_expr()?;
+        return Err(ParseError::Return { value });
+    }
+
     /// Parses an expression (handles addition and subtraction).
     /// This has lower precedence than `parse_term`.
     fn parse_expr(&mut self) -> Result<Token, ParseError> {
@@ -687,16 +653,35 @@ impl Parser {
                     self.eat(Token::Plus)?;
                     // Parse the next term.
                     let next_term = self.parse_term()?;
-                    // Type-check and perform the operation.
-                    if let (Token::Number(lhs), Token::Number(rhs)) = (&result, &next_term) {
-                        result = Token::Number(lhs + rhs);
-                    } else {
-                        // Error: "Cannot add {type} to {type}"
-                        return Err(ParseError::TypeMismatch {
-                            expected: Token::TypeNumber,
-                            found: next_term,
-                        });
+                    match (&result, &next_term) {
+                        (Token::Number(lhs), Token::Number(rhs)) => {
+                            result = Token::Number(lhs + rhs);
+                        },
+                        
+                        (Token::String(lhs), Token::String(rhs)) => {
+                            result = Token::String(format!("{}{}", lhs, rhs));
+                        },
+
+                        (Token::String(lhs), Token::Number(rhs)) => {
+                            result = Token::String(format!("{}{}", lhs, rhs));
+                        },
+
+                        (Token::Number(lhs), Token::String(rhs)) => {
+                            result = Token::String(format!("{}{}", lhs, rhs));
+                        },
+
+                        (Token::String(lhs), Token::Boolean(rhs)) => {
+                            result = Token::String(format!("{}{}", lhs, rhs));
+                        },
+                        
+                        _ => {
+                            return Err(ParseError::TypeMismatch {
+                                expected: Token::TypeNumber,
+                                found: next_term,
+                            });
+                        }
                     }
+                    
                 }
                 Token::Minus => {
                     self.eat(Token::Minus)?;
@@ -824,13 +809,18 @@ impl Parser {
             }
             // A variable.
             Token::Identifier(name) => {
-                self.eat(Token::Identifier(name.clone()))?;
-                // Look up the variable's value.
-                if let Some(value_token) = self.get_variable(&name) {
-                    Ok(value_token.clone()) // Return its value.
+                if let Some(Token::LParen) = self.peek() {
+                    self.parse_function_call(&name)
                 } else {
-                    // Error: "Variable not found"
-                    Err(ParseError::UndeclaredVariable { name })
+                    
+                    self.eat(Token::Identifier(name.clone()))?;
+                    // Look up the variable's value.
+                    if let Some(value_token) = self.get_variable(&name) {
+                        Ok(value_token.clone()) // Return its value.
+                    } else {
+                        // Error: "Variable not found"
+                        Err(ParseError::UndeclaredVariable { name })
+                    }
                 }
             }
             
@@ -846,8 +836,7 @@ impl Parser {
        
     }
 
-    fn parse_function_call(&mut self, name: &str) -> Result<Token, ParseError>
-    {
+    fn parse_function_call(&mut self, name: &str) -> Result<Token, ParseError> {
         // identifier ve parantezi tüketiyor
         self.eat(Token::Identifier(name.to_string()))?;
         self.eat(Token::LParen)?;
@@ -898,12 +887,21 @@ impl Parser {
 
         //bu kısmı anlayamadım
         func_parser.functions = self.functions.clone();
+        let mut return_val = Token::Boolean(true);
         while func_parser.current_token().is_some() {
-            func_parser.sense()?;
+            match func_parser.sense() {
+                Ok(_) => { /* normal akış */ }
+                Err(ParseError::Return { value }) => {
+                    return_val = value;
+                    break;
+                }
+                Err(e) => return Err(e),
+            }
+            
         }
 
         //değeri bool olarak döndürüyor
-        Ok(Token::Boolean(true))
+        Ok(return_val)
 
     }
 
@@ -922,6 +920,7 @@ impl Parser {
                     Token::While => self.parse_while(),
                     Token::For => self.parse_for(),
                     Token::Func => self.parse_fn(),
+                    Token::Return => self.parse_return(),
                     // Statement starts with an identifier.
                     Token::Identifier(name) => {
                         let name_clone = name.clone();

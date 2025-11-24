@@ -48,5 +48,6 @@ pub enum Token {
     EndOfCondition,
     Range,
     Comma,
+    Return,
     EOF,
 }
