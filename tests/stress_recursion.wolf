@@ -1,0 +1,8 @@
+fn kamikaze(n)
+    print "Depth: ", n
+    
+    kamikaze(n + 1)
+end
+
+print "Depth Starting..."
+kamikaze(1)

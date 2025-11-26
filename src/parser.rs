@@ -16,8 +16,8 @@ pub struct Parser {
     output: Vec<String>,
     // A stack of HashMaps to manage variable scopes.
     // The last HashMap in the Vec is the innermost (current) scope.
-    scopes: Vec<HashMap<String, Token>>,
-    functions: HashMap<String, Function>,
+    pub scopes: Vec<HashMap<String, Token>>,
+    pub functions: HashMap<String, Function>,
 }
 
 impl Parser {
@@ -837,19 +837,21 @@ impl Parser {
     }
 
     fn parse_function_call(&mut self, name: &str) -> Result<Token, ParseError> {
-        // identifier ve parantezi tüketiyor
+        // 1. Consume the function name and the opening parenthesis '('.
         self.eat(Token::Identifier(name.to_string()))?;
         self.eat(Token::LParen)?;
         
-        //argümanları (fonksiyon touple sindeki) token olarak alıyor
+        // Vector to hold the evaluated arguments passed to the function.
         let mut args: Vec<Token> = Vec::new();
 
-        // mevcut token parantez kapatma ise argümanların değerini args listesine ekliyor, virgül var ise virgülü yiyip loopa devam ediyor yoksa işlemi bitiriyor
+        // 2. Parse arguments if the parenthesis is not immediately closed.
         if self.current_token() != Some(&Token::RParen) {
             loop {
+                // Evaluate the expression for the current argument.
                 let arg_value = self.parse_expr()?;
                 args.push(arg_value);
 
+                // If there is a comma, consume it and continue; otherwise, break.
                 if let Some(Token::Comma) = self.current_token() {
                     self.eat(Token::Comma)?;
                 } else {
@@ -858,51 +860,63 @@ impl Parser {
             }
         }
 
-        //parantez tüketme
+        // 3. Consume the closing parenthesis ')'.
         self.eat(Token::RParen)?;
 
-        // fonksiyon ismi hashmap e kayıtlıysa func değişkenini atıyor değil ise hata veriyor
+        // 4. Retrieve the function definition from the registry.
+        // If not found, return an UndeclaredVariable error.
         let func = match self.functions.get(name) {
             Some(f) => f.clone(),
             None => return Err(ParseError::UndeclaredVariable { name: name.to_string() }),
         };
 
-        //fonksiyon scopesini oluşturuyor
+        // 5. Prepare the local scope for the function execution.
         let mut func_scope = HashMap::new();
 
-        //fonksiyon ismi ve argümanları scope ye atıyor
+        // Map the passed arguments to the function's parameter names.
         for (param_name, arg_value) in func.params.iter().zip(args.into_iter()) {
             func_scope.insert(param_name.clone(), arg_value);
         }
 
-        //fonksiyon için yeni bir parser oluşturuyor
+        // 6. Create a temporary Parser instance to execute the function body.
+        // This ensures complete isolation and proper execution flow.
         let mut func_parser = Parser::new(func.body);
 
-        //global scope leri func scopesine ekliyor global scope yoksa sadece func
+        // Inject scopes: 
+        // We pass the Global Scope (index 0) so the function can access global variables,
+        // and the Local Scope we just created for parameters.
         if let Some(global_scope) = self.scopes.first() {
             func_parser.scopes = vec![global_scope.clone(), func_scope];
         } else {
             func_parser.scopes = vec![func_scope];
         }
 
-        //bu kısmı anlayamadım
+        // Pass the function registry to the new parser.
+        // This enables the function to call other functions or itself (recursion).
         func_parser.functions = self.functions.clone();
+
+        // Default return value is void (represented as boolean true).
         let mut return_val = Token::Boolean(true);
+
+        // 7. Execute the function body tokens.
         while func_parser.current_token().is_some() {
             match func_parser.sense() {
-                Ok(_) => { /* normal akış */ }
+                Ok(_) => { /* Continue execution normally */ }
+                
+                // Capture the 'Return' signal.
+                // We treat Return as a special error type to break the execution loop immediately.
                 Err(ParseError::Return { value }) => {
                     return_val = value;
                     break;
                 }
+                
+                // Propagate any other actual parsing errors.
                 Err(e) => return Err(e),
             }
-            
         }
 
-        //değeri bool olarak döndürüyor
+        // Return the final value of the function execution.
         Ok(return_val)
-
     }
 
     /// The main dispatch function. It "senses" what the current token is

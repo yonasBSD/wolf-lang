@@ -1,12 +1,9 @@
 use std::{fs, io::{self, BufRead, Read}};
 use clap::{Arg, Parser as otherParser};
-use crate::{lexer::lexer, parser::Parser};
+use std::time::Instant;
 
-mod tokens;
-mod lexer;
-mod parser;
-mod error_handler;
-mod stdlib;
+use wolflang::{WolfEngine, lexer::lexer, parser};
+
 
 
 #[derive(otherParser, Debug)]
@@ -27,6 +24,7 @@ fn main() {
 }
 
 fn run_file(path: &str) {
+    
     let content = match fs::read_to_string(path) {
         Ok(c) => c,
         Err(e) => {
@@ -34,22 +32,13 @@ fn run_file(path: &str) {
             return;
         }
     };
+    
+    let mut Engine = WolfEngine::new();
 
-    let tokens = match lexer(&content) {
-        Ok(t) => t,
-        Err(err) => {
-            eprintln!("Lexer error: {}", err);
-            return;
-        }
-    };
-
-    let mut parser = Parser::new(tokens);
-    while let Some(_) = parser.current_token() {
-        if let Err(err) = parser.sense() {
-            eprintln!("Parser error: {:?}", err);
-            break;
-        }
+    if let Err(e) = Engine.run(&content) {
+        eprintln!("{}", e);
     }
+
 }
 
 fn run() {
@@ -108,15 +97,40 @@ fn run() {
     };
     println!("{:?}", tokens);
 
-    let mut parser = Parser::new(tokens);
+    let mut parser = parser::Parser::new(tokens);
 
     while parser.current_token().is_some() {
-        match parser.sense() {
-            Ok(_) => (),
-            Err(err) => {
-                eprintln!("Parser error: {:?}", err);
-                break;
+        if let Err(e) = parser.sense() {
+            eprintln!("❌ Parser Error: {:?}", e);
+            break;
+        }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use wolflang::WolfEngine;
+
+    #[test]
+    fn counter() {
+        let mut Engine = WolfEngine::new();
+        let mut counter: i64 = 0;
+        while counter < 10 {
+            
+            Engine.push_int("counter", counter);
+    
+            let code = r#"
+                counter = counter + 1
+            "#;
+    
+            if let Err(e) = Engine.run(code) {
+                eprintln!("{}", e);
             }
+    
+            let value = Engine.get_int("counter").unwrap();
+            counter = value;
+            println!("{:?}", value);
         }
     }
 }

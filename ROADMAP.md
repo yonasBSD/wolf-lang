@@ -6,8 +6,9 @@ The core of the language, reasoning capabilities, and memory management.
 - [x] **Function Call (`call`):** Executes functions like `add()`.
 - [x] **Parameter Passing:** Passing values like `(x, y)` into functions.
 - [x] **Scope & Recursion:** Self-calling functions support (Fibonacci Test ✅).
-- [x] **`return` Statement:** Returning values from functions (Current Task 🛑).
-- [ ] **Stress Testing:** Pushing the parser limits with edge cases.
+- [x] **`return` Statement:** Returning values from functions.
+- [x] **Stress Testing:** Pushing the parser limits with edge cases.
+- [x] **Embeddable Architecture:** Refactoring to `lib.rs` & `main.rs` structure. Now usable as a Rust crate! 📦
 
 ## 📅 Week 2: Memory & Data
 Transitioning from single values to lists and data structures.
