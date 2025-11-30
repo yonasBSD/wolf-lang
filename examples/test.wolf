@@ -1,0 +1,67 @@
+# --- HELPER FUNCTIONS ---
+
+# Function to print the list nicely
+fn print_list(title, li)
+    print "--- " + title + " ---"
+    let int i = 0
+    let int length = li.len()
+    
+    while i < length
+        print "[" + i + "]: " + li[i]
+        i = i + 1
+    end
+    print " " # Empty line
+end
+
+# Bubble Sort Algorithm (Ascending Order)
+fn bubble_sort(arr)
+    let int n = arr.len()
+    let int i = 0
+
+    # Outer loop: Moves the largest element to the end
+    while i < n
+        let int j = 0
+        let int limit = n - i - 1
+        
+        # Inner loop: Compare adjacent elements
+        while j < limit
+            let int left = arr[j]
+            let int right_index = j + 1
+            let int right = arr[right_index]
+
+            # If left is greater than right, SWAP them
+            if left > right
+                # Array Mutation happening here!
+                arr[j] = right
+                arr[right_index] = left
+            end
+            
+            j = j + 1
+        end
+        i = i + 1
+    end
+    
+    return arr
+end
+
+# --- MAIN SCENARIO ---
+
+# 1. Create a mixed score list
+let list scores = [450, 120, 890, 30]
+
+# 2. Add new scores dynamically (push test)
+print "Adding new scores..."
+scores.push(500)
+scores.push(10)
+
+# 3. Show unsorted state
+print_list("UNSORTED LIST", scores)
+
+# 4. Start sorting
+print ">> Sorting Algorithm Started..."
+scores = bubble_sort(scores)
+
+print_list("SORTED LIST (High Score)", scores)
+
+let int highest = scores.pop() 
+print "Removed (Highest Score): ", highest

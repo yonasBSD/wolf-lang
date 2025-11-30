@@ -14,14 +14,14 @@ The core of the language, reasoning capabilities, and memory management.
 Transitioning from single values to lists and data structures.
 - [x] **Arrays:** Implementation of `let list x = [1, 2, 3]`.
 - [x] **Indexing:** Reading data via `print x[0]`.
-- [ ] **Methods:** Binding Rust vector methods like `push`, `pop`, `len`.
+- [x] **Methods:** Binding Rust vector methods like `push`, `pop`, `len`.
 - [ ] **Mini Project:** A simple "Notepad" application using WolfLang.
 
 ## 📅 Week 3: Communication (Input/Output)
 Enabling the language to interact with the outside world.
 - [ ] **Native Functions:** Embedding Rust-based `input()` function.
 - [x] **String Operations:** String concatenation (`"Hello " + name`).
-- [ ] **Comments:** Ignoring lines starting with `//` in Lexer.
+- [x] **Comments:** Ignoring lines starting with `#` in Lexer.
 - [ ] **Game Demo:** "Number Guessing Game" (Testing Input and If/Else logic).
 
 ## 📅 Week 4: Packaging (Release)

@@ -275,6 +275,46 @@ impl Parser {
         }
     }
 
+    fn parse_list_assignment(&mut self, list_name: &str) -> Result<(), ParseError> {
+        self.eat(Token::Identifier(list_name.to_string()))?;
+        self.eat(Token::LBracket)?;
+        let index_expr = self.parse_expr()?;
+        self.eat(Token::RBracket)?;
+        self.eat(Token::Assign)?;
+
+        let new_value = self.parse_expr()?;
+
+        let index_val = if let Token::Integer(n) = index_expr {
+            if n < 0 { return Err(ParseError::UnkownType { type_name: "Negative index cannot be".to_string() }); }
+            n as usize
+        } else {
+            return Err(ParseError::TypeMismatch { expected: Token::TypeInt, found: index_expr });
+        };
+        
+        for scope in self.scopes.iter_mut().rev() {
+            if let Some(token) = scope.get_mut(list_name) {
+                
+                if let Token::List(elements) = token {
+                    if index_val < elements.len() {
+                        elements[index_val] = new_value;
+                        return Ok(());
+                    } else {
+                        return Err(ParseError::UnkownType { 
+                            type_name: format!("Index out of bounds: {} (Len: {})", index_val, elements.len()) 
+                        });
+                    }
+                } else {
+                    return Err(ParseError::TypeMismatch { 
+                        expected: Token::TypeList, 
+                        found: token.clone() 
+                    });
+                }
+            }
+        }
+
+        Err(ParseError::UndeclaredVariable { name: list_name.to_string() })
+    }
+
     /// Parses a 'print' statement. e.g., print "Hello", 10 + 5
     fn parse_print(&mut self) -> Result<(), ParseError> {
         // Consume the 'print' keyword.
@@ -405,6 +445,21 @@ impl Parser {
                                 _ => {
                                     return Err(ParseError::UnexpectedToken {
                                         expected: Token::Equals, // or NotEquals
+                                        found: Some(op_token),
+                                    })
+                                },
+                            };
+                            return Ok(result);
+                        }
+
+                        (Token::List(lhs), Token::List(rhs)) => {
+                            let result = match op_token {
+                                Token::Equals => lhs == rhs,
+                                Token::NotEquals => lhs != rhs,
+                                
+                                _ => {
+                                    return Err(ParseError::UnexpectedToken {
+                                        expected: Token::Equals,
                                         found: Some(op_token),
                                     })
                                 },
@@ -923,6 +978,8 @@ impl Parser {
                     self.parse_function_call(&name)
                 } else if let Some(Token::LBracket) = self.peek() {
                     self.parse_list_index(&name)
+                } else if let Some(Token::Dot) = self.peek() {
+                    self.parse_method_call(&name)
                 } else {
                     
                     self.eat(Token::Identifier(name.clone()))?;
@@ -1031,6 +1088,82 @@ impl Parser {
         Ok(return_val)
     }
 
+    fn parse_method_call(&mut self, var_name: &str) -> Result<Token, ParseError> {
+        self.eat(Token::Identifier(var_name.to_string()))?;
+
+        self.eat(Token::Dot)?;
+        let method_name = match self.current_token() {
+            Some(Token::Identifier(name)) => name.clone(),
+            _ => return Err(ParseError::UnexpectedToken { 
+                expected: Token::Identifier("method name".to_string()), 
+                found: self.current_token().cloned() 
+            })
+        };
+        self.pos += 1;
+
+        self.eat(Token::LParen)?;
+        // Vector to hold the evaluated arguments passed to the function.
+        let mut args: Vec<Token> = Vec::new();
+
+        // 2. Parse arguments if the parenthesis is not immediately closed.
+        if self.current_token() != Some(&Token::RParen) {
+            loop {
+                // Evaluate the expression for the current argument.
+                let arg_value = self.parse_expr()?;
+                args.push(arg_value);
+
+                // If there is a comma, consume it and continue; otherwise, break.
+                if let Some(Token::Comma) = self.current_token() {
+                    self.eat(Token::Comma)?;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // 3. Consume the closing parenthesis ')'.
+        self.eat(Token::RParen)?;
+        
+        for scopes in self.scopes.iter_mut().rev() {
+            if let Some(variable) = scopes.get_mut(var_name) {
+                match variable {
+                    Token::List(elements) => {
+                        if method_name == "push" {
+                            if args.is_empty() {
+                                return Err(ParseError::UnkownType { type_name: "push() requires an argument".to_string() });
+                            }
+                            elements.push(args[0].clone());
+                            return Ok(Token::Boolean(true)); 
+                        } 
+                        else if method_name == "pop" {
+                            return Ok(elements.pop().unwrap_or(Token::Boolean(false)));
+                        }
+                        else if method_name == "len" {
+                            return Ok(Token::Integer(elements.len() as i64));
+                        }
+                    },
+
+                    Token::String(s) => {
+                        if method_name == "len" {
+                            return Ok(Token::Integer(s.len() as i64));
+                        }
+                        else if method_name == "uppercase" {
+                            return Ok(Token::String(s.to_uppercase()));
+                        }
+                    },
+
+                    _ => {}
+                }
+
+                return Err(ParseError::UnkownType { 
+                    type_name: format!("Method '{}' not found on this type", method_name) 
+                });
+            }
+        }
+
+        Err(ParseError::UndeclaredVariable { name: var_name.to_string() })
+    }
+
     /// The main dispatch function. It "senses" what the current token is
     /// and dispatches to the correct parsing function for that statement.
     pub fn sense(&mut self) -> Result<(), ParseError> {
@@ -1058,6 +1191,14 @@ impl Parser {
                         } 
                         else if let Some(Token::LParen) = self.peek() {
                             self.parse_function_call(&name_clone)?;
+                            Ok(())
+                        } 
+                        else if let Some(Token::LBracket) = self.peek() {
+                            self.parse_list_assignment(&name_clone)?;
+                            Ok(())
+                        } 
+                        else if let Some(Token::Dot) = self.peek() {
+                            self.parse_method_call(&name_clone)?;
                             Ok(())
                         } 
                         else {

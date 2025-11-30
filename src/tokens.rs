@@ -25,6 +25,7 @@ pub enum Token {
     Minus,
     Multiply,
     Divide,
+    Dot,
 
     // Parantez / blok
     LParen,

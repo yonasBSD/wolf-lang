@@ -131,6 +131,14 @@ pub fn lexer(content: &str) -> Result<Vec<Token>, String> {
                 continue;
             }
 
+            '#' => {
+                // Skip comment until end of line
+                while i < content.len() && chars[i] != '\n' {
+                    i += 1;
+                }
+                continue;
+            }
+
             '+' => { token.push(Token::Plus); i += 1; continue; }
             '-' => { token.push(Token::Minus); i += 1; continue; }
             '*' => { token.push(Token::Multiply); i += 1; continue; }
@@ -140,6 +148,7 @@ pub fn lexer(content: &str) -> Result<Vec<Token>, String> {
             '[' => { token.push(Token::LBracket); i += 1; continue; }
             ']' => { token.push(Token::RBracket); i += 1; continue; }
             ',' => { token.push(Token::Comma); i += 1; continue; }
+            '.' => { token.push(Token::Dot); i += 1; continue; }
             _ => {}
         }
 

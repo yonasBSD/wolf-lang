@@ -8,3 +8,5 @@ print number
 print number2
 print text
 print condition
+
+print number
