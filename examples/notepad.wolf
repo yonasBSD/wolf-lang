@@ -1,0 +1,23 @@
+let list lines = []
+
+fn write()
+    let int i = 0
+    while 0 < 1
+        let string in = input(">")
+        if in == "all()"
+            read()
+        end
+        lines.push(in)
+    end
+end
+
+fn read()
+    let int line_length = lines.len()
+    line_length = line_length
+    print line_length
+    for int i = 0 range line_length
+        print lines[i]
+    end
+end
+
+write()

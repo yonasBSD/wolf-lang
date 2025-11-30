@@ -1,0 +1,126 @@
+# ----------------------------------------
+# WolfLang RPG: Battle Simulator
+# ----------------------------------------
+
+# 1. Global State
+let int player_hp = 100
+let int enemy_hp = 150
+let bool game_running = true
+
+# Inventory System (Using Lists)
+let list inventory = ["Potion", "Potion", "Bomb"]
+
+# ----------------------------------------
+# 2. Helper Functions
+# ----------------------------------------
+
+# RECURSION TEST: Calculates magic damage based on charge level
+# Sums all numbers from n down to 1 (e.g. 5+4+3+2+1 = 15)
+fn charge_magic(n)
+    if n <= 1
+        return 1
+    end
+    
+    # Recursive call
+    return n + charge_magic(n - 1) 
+end
+
+fn show_hud(p_hp, e_hp)
+    print "=================================="
+    print " PLAYER HP: ", p_hp, " | ENEMY HP: ", e_hp
+    print "=================================="
+end
+
+fn use_item()
+    let int count = inventory.len()
+    if count == 0
+        print "Inventory is empty!"
+        return 0
+    end
+
+    # Pop the last item (List Method test)
+    let string item = inventory.pop()
+    print "Used item: ", item
+
+    if item == "Potion"
+        print "Recovered 30 HP!"
+        return 30
+    end
+    
+    if iteToken::Integer(i) => print!("{}", i),
+            Token::Float(f) => print!("{}", f),
+            Token::Boolean(b) => print!("{}", b),m == "Bomb"
+        print "BOOM! Dealt 50 damage to enemy!"
+        return 500 # Code 500 means damage to enemy
+    end
+
+    return 0
+end
+
+# ----------------------------------------
+# 3. Main Game Loop
+# ----------------------------------------
+
+print "A wild WOLF appears!"
+
+while game_running == true
+    show_hud(player_hp, enemy_hp)
+    
+    print "1. Attack"
+    print "2. Magic (Recursive)"
+    print "3. Use Item (List Pop)"
+    print "4. Run"
+
+    # Native Input function
+    let string choice = input("Choose action: ")
+
+    # --- PLAYER TURN ---
+    if choice == "1"
+        print "You swung your sword!"
+        enemy_hp = enemy_hp - 15
+    end
+
+    if choice == "2"
+        print "Channeling magic power..."
+        # Calls the recursive function
+        let int dmg = charge_magic(8) 
+        print "CAST SPELL! Damage: ", dmg
+        enemy_hp = enemy_hp - dmg
+    end
+
+    if choice == "3"
+        let int effect = use_item()
+        
+        if effect == 500
+            enemy_hp = enemy_hp - 50
+        end
+        
+        if effect == 30
+            player_hp = player_hp + 30
+        end
+    end
+
+    if choice == "4"
+        print "You ran away..."
+        game_running = false
+    end
+
+    # --- ENEMY TURN ---
+    if enemy_hp > 0
+        if game_running == true
+            print "Enemy attacks you!"
+            player_hp = player_hp - 12
+        end
+    end
+
+    # --- WIN/LOSS CONDITIONS ---
+    if enemy_hp <= 0
+        print "VICTORY! The Wolf is defeated."
+        game_running = false
+    end
+
+    if player_hp <= 0
+        print "GAME OVER..."
+        game_running = false
+    end
+end

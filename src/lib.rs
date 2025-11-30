@@ -2,7 +2,8 @@ pub mod tokens;
 pub mod lexer;
 pub mod parser;
 pub mod error_handler;
-pub mod stdlib; 
+pub mod stdlib;
+pub mod native_functions;
 
 use std::collections::HashMap;
 use parser::Parser;

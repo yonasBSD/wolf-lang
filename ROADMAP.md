@@ -15,14 +15,14 @@ Transitioning from single values to lists and data structures.
 - [x] **Arrays:** Implementation of `let list x = [1, 2, 3]`.
 - [x] **Indexing:** Reading data via `print x[0]`.
 - [x] **Methods:** Binding Rust vector methods like `push`, `pop`, `len`.
-- [ ] **Mini Project:** A simple "Notepad" application using WolfLang.
+- [x] **Mini Project:** A simple "Notepad" application using WolfLang.
 
 ## 📅 Week 3: Communication (Input/Output)
 Enabling the language to interact with the outside world.
-- [ ] **Native Functions:** Embedding Rust-based `input()` function.
+- [x] **Native Functions:** Embedding Rust-based `input()` function.
 - [x] **String Operations:** String concatenation (`"Hello " + name`).
 - [x] **Comments:** Ignoring lines starting with `#` in Lexer.
-- [ ] **Game Demo:** "Number Guessing Game" (Testing Input and If/Else logic).
+- [x] **Game Demo:** "Turn Based Game".
 
 ## 📅 Week 4: Packaging (Release)
 Preparing the product for the showcase.

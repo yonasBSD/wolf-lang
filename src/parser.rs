@@ -661,25 +661,18 @@ impl Parser {
         };
 
         self.eat(Token::Assign)?;
-
-        let start_val = match self.current_token() {
-            Some(Token::Integer(n)) => {
-                let val = *n;
-                self.pos += 1;
-                val
-            }
-            _ => return Err(ParseError::UnexpectedToken { expected: Token::Integer(0), found: self.current_token().cloned() })
+        let start_token = self.parse_expr()?; // CHANGED: Allows variables/math
+        let start_val = match start_token {
+            Token::Integer(n) => n,
+            _ => return Err(ParseError::TypeMismatch { expected: Token::TypeInt, found: start_token })
         };
 
         self.eat(Token::Range)?;
 
-        let end_val = match self.current_token() {
-            Some(Token::Integer(n)) => {
-                let val = *n;
-                self.pos += 1; // Consume number
-                val
-            },
-            _ => return Err(ParseError::UnexpectedToken { expected: Token::Integer(0), found: self.current_token().cloned() })
+        let end_token = self.parse_expr()?; // CHANGED: Allows variables/math
+        let end_val = match end_token {
+            Token::Integer(n) => n,
+            _ => return Err(ParseError::TypeMismatch { expected: Token::TypeInt, found: end_token })
         };
 
         let (block_tokens, end_of_loop_pos) = self.find_loop_block(self.pos)?;
@@ -1031,6 +1024,10 @@ impl Parser {
 
         // 3. Consume the closing parenthesis ')'.
         self.eat(Token::RParen)?;
+
+        if let Some(result) = crate::native_functions::dispatch(name, args.clone()) {
+            return result;
+        }
 
         // 4. Retrieve the function definition from the registry.
         // If not found, return an UndeclaredVariable error.
