@@ -1,0 +1,9 @@
+let x : int = 10
+let y : int = 15
+
+if x < y and y > x
+    print "aaa"
+end
+else 
+    print "bbb"
+end

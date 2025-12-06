@@ -1,4 +1,4 @@
-fn kamikaze(n)
+fn kamikaze(n: int)
     print "Depth: ", n
     
     kamikaze(n + 1)

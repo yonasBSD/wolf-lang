@@ -37,6 +37,7 @@ pub enum Token {
 
     //Conditions
     If,
+    Else,
     For,
     While,
 
@@ -47,6 +48,8 @@ pub enum Token {
     GreaterEquals,
     LesserEquals,
     NotEquals,
+    And,
+    Or,
 
     //Functions
     Func,

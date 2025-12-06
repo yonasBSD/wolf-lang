@@ -6,7 +6,7 @@ use crate::{error_handler::ParseError, tokens::{self, Token}};
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
     pub name: String,
-    pub params: Vec<String>,
+    pub params: Vec<(String, Token)>,
     pub body: Vec<Token>,
 }
 
@@ -476,6 +476,19 @@ impl Parser {
 
     /// Parses a condition (e.g., 'x > 10', 'name == "iso"').
     fn parse_condition(&mut self) -> Result<bool, ParseError> {
+        let mut left = self.parse_logic_and()?;
+
+        while let Some(Token::Or) = self.current_token() {
+            self.eat(Token::Or)?;
+            let right = self.parse_logic_and()?;
+        
+            left = left || right;
+        }
+
+        Ok(left)
+    }
+
+    fn parse_comprasion(&mut self) -> Result<bool, ParseError> {
         // Parse the left-hand side of the comparison.
         let lhs_token = self.parse_expr()?;
 
@@ -569,24 +582,41 @@ impl Parser {
                         }
                         // Types do not match (e.g., comparing a number to a string).
                         _ => {
-                            return Err(ParseError::TypeMismatch {
-                                expected: lhs_token.clone(),
-                                found: rhs_token,
-                            });
+                            Err(ParseError::TypeMismatch { expected: lhs_token, found: rhs_token })
                         }
                     }
 
                 }
                 // Not a comparison operator, fall through to the error.
-                _ => {}
+                _ => {
+                    if let Token::Boolean(b) = lhs_token {
+                        Ok(b)
+                    } else {
+                        Err(ParseError::TypeMismatch { expected: Token::TypeBool, found: Token::Unknown })
+                    }
+                }
+            }
+        } else {
+            if let Token::Boolean(b) = lhs_token {
+                Ok(b)
+            } else {
+                Err(ParseError::TypeMismatch { expected: Token::TypeBool, found: Token::Unknown })
             }
         }
-        
-        // If we're here, we parsed an LHS but didn't find a valid operator.
-        Err(ParseError::UnexpectedToken {
-            expected: Token::Equals, // Placeholder for "any comparison op"
-            found: self.current_token().cloned(),
-        })
+    }
+
+    fn parse_logic_and(&mut self) -> Result<bool, ParseError> {
+        let mut left = self.parse_comprasion()?;
+
+        while let Some(Token::And) = self.current_token() {
+            self.eat(Token::And)?;
+
+            let right = self.parse_comprasion()?;
+
+            left = left && right;
+        }
+
+        Ok(left)
     }
 
     fn find_loop_block(&self, start_pos: usize) -> Result<(Vec<Token>, usize), ParseError> {
@@ -656,7 +686,29 @@ impl Parser {
             // Pop the 'if' block's scope, discarding its new variables.
             self.scopes.pop();
         }
-        
+        if let Some(next) = self.current_token(){
+                
+            self.eat(Token::Else)?;
+            let (else_block_tokens, else_end_of_loop_pos) = self.find_loop_block(self.pos)?;
+            self.pos = else_end_of_loop_pos;
+            
+            // Execute the 'else' block ONLY if the condition was FALSE
+            if !condition_result {
+                let mut else_block_parser = Parser::new(else_block_tokens);
+                
+                // Pass the current scope state
+                else_block_parser.scopes = self.scopes.clone(); 
+                else_block_parser.functions = self.functions.clone();
+
+                while let Some(_) = else_block_parser.current_token() {
+                    else_block_parser.sense()?;
+                }
+
+                // Sync scopes back (optional depending on your language design)
+                self.scopes = else_block_parser.scopes;
+                self.scopes.pop(); // Pop the scope created implicitly by find_loop_block separation
+            }
+        }
         Ok(())
     }
 
@@ -820,8 +872,15 @@ impl Parser {
 
         let mut params = Vec::new();
         while let Some(Token::Identifier(param_name)) = self.current_token() {
-            params.push(param_name.clone());
+            let p_name = param_name.clone();
             self.pos += 1;
+
+            self.eat(Token::Colon)?;
+
+            let p_type = self.parse_type()?;
+
+            params.push((p_name, p_type));
+
             if let Some(Token::Comma) = self.current_token() {
                 self.pos += 1;
             }
@@ -834,7 +893,7 @@ impl Parser {
 
         let (body_tokens, end_pos) = self.find_loop_block(self.pos)?;
 
-        let func = Function {name: name.clone(), params, body: body_tokens};
+        let func = Function { name: name.clone(), params, body: body_tokens };
         self.functions.insert(name, func);
 
         self.pos = end_pos;
@@ -1140,8 +1199,26 @@ impl Parser {
         // 5. Prepare the local scope for the function execution.
         let mut func_scope = HashMap::new();
 
+        // Check argument count first
+        if func.params.len() != args.len() {
+            return Err(ParseError::UnkownType { 
+                type_name: format!("Function '{}' expects {} arguments, but got {}", name, func.params.len(), args.len()) 
+            });
+        }
+
         // Map the passed arguments to the function's parameter names.
-        for (param_name, arg_value) in func.params.iter().zip(args.into_iter()) {
+        // 'param' is now a tuple: (name, expected_type)
+        for ((param_name, expected_type), arg_value) in func.params.iter().zip(args.into_iter()) {
+            
+            // Check if the argument matches the expected type
+            if !self.check_type_compatibility(expected_type, &arg_value) {
+                return Err(ParseError::TypeMismatch { 
+                    expected: expected_type.clone(), 
+                    found: arg_value 
+                });
+            }
+
+            // Insert into scope if type is correct
             func_scope.insert(param_name.clone(), arg_value);
         }
 
