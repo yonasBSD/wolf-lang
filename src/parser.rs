@@ -624,7 +624,7 @@ impl Parser {
         let mut scope_depth = 1;
 
         while let Some(tok) = self.tokens.get(temp_pos) {
-            if *tok == Token::While || *tok == Token::If || *tok == Token::For { 
+            if *tok == Token::While || *tok == Token::If || *tok == Token::For || *tok == Token::Else { 
                 scope_depth += 1;
             } else if *tok == Token::EndOfCondition { // 'end' token'ı
                 scope_depth -= 1;
@@ -686,7 +686,7 @@ impl Parser {
             // Pop the 'if' block's scope, discarding its new variables.
             self.scopes.pop();
         }
-        if let Some(next) = self.current_token(){
+        if let Some(Token::Else) = self.current_token(){
                 
             self.eat(Token::Else)?;
             let (else_block_tokens, else_end_of_loop_pos) = self.find_loop_block(self.pos)?;
@@ -694,6 +694,7 @@ impl Parser {
             
             // Execute the 'else' block ONLY if the condition was FALSE
             if !condition_result {
+                self.scopes.push(HashMap::new());
                 let mut else_block_parser = Parser::new(else_block_tokens);
                 
                 // Pass the current scope state
