@@ -4,6 +4,7 @@ pub mod parser;
 pub mod error_handler;
 pub mod stdlib;
 pub mod native_functions;
+pub mod ast;
 
 use std::collections::HashMap;
 use parser::Parser;
