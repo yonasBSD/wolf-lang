@@ -31,9 +31,17 @@ impl Interpreter {
 
     fn execute(&mut self, stmt: Stmt) -> Result<(), ParseError> {
         match stmt {
-            Stmt::Print(expr) => {
-                let value = self.evaluate(expr);
-                self.print_token_value(&value)?;
+            Stmt::Print(exprs) => {
+                for (index, expr) in exprs.iter().enumerate() {
+                    let value = self.evaluate(expr.clone());
+
+                    self.print_token_value(&value)?;
+
+                    if index < exprs.len() - 1 {
+                        print!("");
+                    }
+
+                }
                 println!();
                 Ok(())
             }

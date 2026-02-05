@@ -223,9 +223,16 @@ impl Parser {
     fn parse_print(&mut self) -> Result<Stmt, ParseError> {
         self.eat(Token::Print)?;
 
-        let value = self.parse_expr()?;
+        let mut exprs = Vec::new();
 
-        Ok(Stmt::Print(value))
+        exprs.push(self.parse_expr()?);
+
+        while self.check(Token::Comma)  {
+            self.eat(Token::Comma);
+            exprs.push(self.parse_expr()?);
+        }
+
+        Ok(Stmt::Print(exprs))
     }
     /// Parses a condition (e.g., 'x > 10', 'name == "iso"').
     fn parse_condition(&mut self) -> Result<Expr, ParseError> {

@@ -69,7 +69,7 @@ pub enum Stmt {
         data_type: Token,
         value: Expr
     },
-    Print(Expr),
+    Print(Vec<Expr>),
     Block(Vec<Stmt>),
     If {
         condition: Expr,
