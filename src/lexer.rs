@@ -107,10 +107,12 @@ pub fn lexer(content: &str) -> Result<Vec<Token>, String> {
                 if i + 1 < chars.len() && chars[i + 1] == '=' {
                     token.push(Token::NotEquals);
                     i += 2;
-                    continue;
+                    
                 } else {
-                    return Err(format!("Unexpected token starting at index {}", i))
+                    token.push(Token::Bang); 
+                    i += 1;
                 }
+                continue;
             }
 
             '<' => { 

@@ -1,1 +1,5 @@
-print 1 - 2
+let name : int = 4
+
+name = 2
+
+print name, name

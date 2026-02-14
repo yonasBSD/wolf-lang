@@ -1,3 +1,4 @@
+use core::panic;
 use std::collections::HashMap;
 use crate::{ast::{Stmt, Expr, LiteralValue}, tokens::Token, error_handler::ParseError};
 
@@ -31,6 +32,10 @@ impl Interpreter {
 
     fn execute(&mut self, stmt: Stmt) -> Result<(), ParseError> {
         match stmt {
+            Stmt::Expression(expr) => {
+                self.evaluate(expr);
+                Ok(())
+            }
             Stmt::Print(exprs) => {
                 for (index, expr) in exprs.iter().enumerate() {
                     let value = self.evaluate(expr.clone());
@@ -48,7 +53,7 @@ impl Interpreter {
 
             Stmt::Let { name, data_type, value } => {
                 let declared_value = self.evaluate(value);
-                if self.check_type_compatibility(&data_type, &declared_value) {
+                if Self::check_type_compatibility(&data_type, &declared_value) {
                     if let Some(scope) = self.scopes.last_mut() {
                         scope.insert(name, declared_value);
                     }
@@ -92,6 +97,40 @@ impl Interpreter {
                     
                     _ => panic!("Runtime Error: Type mismatch"),
                 }
+            }
+
+            Expr::Unary { operator, right } => {
+                let right_val = self.evaluate(*right);
+                match (operator, right_val) {
+                    (Token::Minus, Token::Integer(n)) => Token::Integer(-n),
+                    (Token::Minus, Token::Float(n)) => Token::Float(-n),
+
+                    (Token::Bang, Token::Boolean(b)) => Token::Boolean(!b),
+
+                    (op, val) => panic!("Runtime Error: {:?} operator cannot used with {:?} .", op, val),
+                    
+                }
+            }
+
+            Expr::Assign { name, value } => {
+                let new_value = self.evaluate(*value);
+
+                for scope in self.scopes.iter_mut().rev() {
+                    if let Some(old_value) = scope.get_mut(&name) {
+                        
+                        if Self::check_type_compatibility(old_value, &new_value) {
+                            
+                            *old_value = new_value.clone();
+                            
+                            return new_value;
+                        } else {
+                            panic!("Runtime Error: Type mismatch! Variable '{}' is {:?} but you tried to assign {:?}", name, old_value, new_value);
+                        }
+                    }
+                }
+
+                panic!("Runtime Error: Variable '{}' not declared.", name);
+                
             }
 
             _ => Token::Unknown,
@@ -141,13 +180,20 @@ impl Interpreter {
         Ok(())
     }
 
-    fn check_type_compatibility(&self, expected_type: &Token, actual_value: &Token) -> bool {
+    fn check_type_compatibility(expected_type: &Token, actual_value: &Token) -> bool {
         match (expected_type, actual_value) {
             (Token::TypeInt, Token::Integer(_)) => true,
             (Token::TypeFloat, Token::Float(_)) => true,
             (Token::TypeString, Token::String(_)) => true,
             (Token::TypeBool, Token::Boolean(_)) => true,
             (Token::TypeList(_), Token::List(_)) => true,
+
+            (Token::Integer(_), Token::Integer(_)) => true,
+            (Token::Float(_), Token::Float(_)) => true,
+            (Token::String(_), Token::String(_)) => true,
+            (Token::Boolean(_), Token::Boolean(_)) => true,
+            (Token::List(_), Token::List(_)) => true,
+
             _ => false
         }        
     }
