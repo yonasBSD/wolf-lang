@@ -66,6 +66,36 @@ impl Interpreter {
                 }
             }
 
+            Stmt::ListAssign { list_name, indices, value } => {
+                let new_val = self.evaluate(value);
+
+                let first_index_expr = &indices[0]; // TODO: Çok boyutlu destekle
+                let idx_token = self.evaluate(first_index_expr.clone());
+
+                let idx = match idx_token {
+                    Token::Integer(n) => n as usize,
+                    _ => panic!("Index must be an integer"),
+                };
+
+                for scope in self.scopes.iter_mut().rev() {
+                    if let Some(token) = scope.get_mut(&list_name) {
+                        if let Token::List(elements) = token {
+                            if idx < elements.len() {
+                                // GÜNCELLEME ANI ⚡
+                                elements[idx] = new_val;
+                                return Ok(());
+                            } else {
+                                panic!("Index out of bounds");
+                            }
+                        } else {
+                            panic!("Variable '{}' is not a list!", list_name);
+                        }
+                    }
+                }
+
+                panic!("Undefined variable '{}'", list_name);
+            }
+
             Stmt::Block(statements) => {
                 self.scopes.push(HashMap::new());
 
@@ -113,6 +143,37 @@ impl Interpreter {
                     }
 
                 }
+                Ok(())
+            }
+
+            Stmt::For { var_name, start_value, end_value, body } => {
+
+                let start_token = self.evaluate(start_value);
+                let end_token = self.evaluate(end_value);
+
+                let mut current = match start_token {
+                    Token::Integer(n) => n,
+                    _ => panic!("Runtime Error: For loop start value must be an Integer!"),
+                };
+
+                let limit = match end_token {
+                    Token::Integer(n) => n,
+                    _ => panic!("Runtime Error: For loop end value must be an Integer!"),
+                };
+                
+                self.scopes.push(HashMap::new());
+
+
+                while current < limit {
+                    if let Some(scope) = self.scopes.last_mut() {
+                        scope.insert(var_name.clone(), Token::Integer(current));
+                    }
+
+                    self.execute(*body.clone())?;
+
+                    current += 1;
+                }
+                self.scopes.pop();
                 Ok(())
             }
 
@@ -202,8 +263,43 @@ impl Interpreter {
                 
             }
 
+            Expr::Index { list, index } => {
+                let list_val = self.evaluate(*list);
+    
+                let index_val = self.evaluate(*index);
+    
+                if let (Token::List(elements), Token::Integer(idx)) = (list_val, index_val) {
+                    if idx < 0 {
+                        panic!("Runtime Error: Index cannot be negative! Found: {}", idx);
+                    }
+                    let i = idx as usize;
+        
+                    if i < elements.len() {
+                        return elements[i].clone();
+                    } else {
+                        panic!("Runtime Error: Index out of bounds! Len: {}, Index: {}", elements.len(), idx);
+                    }
+                } else {
+                    panic!("Runtime Error: Type mismatch. Expected List and Integer index.");
+                } 
+    
+            }
+
+            Expr::List(elements) => {
+                let mut evaluated_list = Vec::new();
+
+                for expr in elements {
+                    let value = self.evaluate(expr);
+                    evaluated_list.push(value);
+                }
+
+                Token::List(evaluated_list)
+                
+            }
+
             _ => Token::Unknown,
         }
+
     }
 
     fn get_variable(&self, name: &str) -> Option<&Token> {
