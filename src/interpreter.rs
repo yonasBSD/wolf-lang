@@ -1,6 +1,6 @@
 use core::panic;
 use std::{collections::HashMap, io::IsTerminal};
-use crate::{ast::{Stmt, Expr, LiteralValue}, tokens::Token, error_handler::ParseError};
+use crate::{ast::{Expr, LiteralValue, Stmt}, error_handler::ParseError, tokens::{self, Token}};
 
 
 #[derive(Debug, Clone, PartialEq)]
@@ -69,31 +69,63 @@ impl Interpreter {
             Stmt::ListAssign { list_name, indices, value } => {
                 let new_val = self.evaluate(value);
 
-                let first_index_expr = &indices[0]; // TODO: Çok boyutlu destekle
-                let idx_token = self.evaluate(first_index_expr.clone());
+                let mut evaluated_indices = Vec::new();
 
-                let idx = match idx_token {
-                    Token::Integer(n) => n as usize,
-                    _ => panic!("Index must be an integer"),
-                };
+                for expr in indices {
+                    match self.evaluate(expr) {
+                        Token::Integer(n) => {
+                            if n < 0 { panic!("Runtime Error: Index cannot be negative!"); }
+                            evaluated_indices.push(n as usize);
+                        }
+
+                        _ => panic!("Runtime Error: Index must be an Integer!"),
+                    }
+                }
+
+                if evaluated_indices.is_empty() {
+                    panic!("Runtime Error: No indices provided!");
+                }
+
+                let mut is_assigned = false;
 
                 for scope in self.scopes.iter_mut().rev() {
-                    if let Some(token) = scope.get_mut(&list_name) {
-                        if let Token::List(elements) = token {
-                            if idx < elements.len() {
-                                // GÜNCELLEME ANI ⚡
-                                elements[idx] = new_val;
-                                return Ok(());
-                            } else {
-                                panic!("Index out of bounds");
+                    if let Some(mut token) = scope.get_mut(&list_name) {
+                        is_assigned = true;
+                        let last_idx = evaluated_indices.pop().unwrap();
+                        for &idx in &evaluated_indices {
+                            match token {
+                                Token::List(elements) => {
+                                    if idx < elements.len() {
+                                        
+                                        token = &mut elements[idx];
+                                    } else {
+                                        panic!("Runtime Error: Index out of bounds!");
+                                    }
+                                }
+                                _ => panic!("Runtime Error: Variable '{}' is not a multi-dimensional list!", list_name),
                             }
-                        } else {
-                            panic!("Variable '{}' is not a list!", list_name);
+                        }
+
+                        match token {
+                            Token::List(elements) => {
+                                if last_idx < elements.len() {
+                                    
+                                    elements[last_idx] = new_val.clone();
+                                    break;
+                                } else {
+                                    panic!("Runtime Error: Index out of bounds!");
+                                }
+                            }
+                            _ => panic!("Runtime Error: Target is not a list!"),
                         }
                     }
                 }
 
-                panic!("Undefined variable '{}'", list_name);
+                if !is_assigned {
+                    panic!("Runtime Error: Undeclared list '{}'", list_name);
+                }
+
+                Ok(())
             }
 
             Stmt::Block(statements) => {
