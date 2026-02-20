@@ -265,7 +265,7 @@ impl Parser {
         self.eat(Token::If)?;
 
         // 1. Parse Condition (returns Expr, doesn't evaluate it)
-        let condition = self.parse_condition()?;
+        let condition = self.parse_logic_or()?;
 
         // 2. Parse the "Then" block
         // We keep parsing statements until we hit 'else' or 'end'
@@ -615,34 +615,44 @@ impl Parser {
     fn parse_logic_or(&mut self) -> Result<Expr, ParseError> {
         let mut left = self.parse_logic_and()?;
 
-        while let Some(tok) = self.current_token().cloned() {
-            if tok == Token::Or {
-                self.pos += 1;
-                // 'right' must also be an Expr
-                let right = self.parse_logic_and()?;
-                
-                left = Expr::Logical {
-                    left: Box::new(left),
-                    operator: tok,
-                    right: Box::new(right),
-                };
-            } else {
-                break;
-            }
+        while let Some(Token::Or) = self.current_token().cloned() {
+            self.eat(Token::Or)?;
+            let right = self.parse_logic_and()?;
+            left = Expr::Logical {
+                left: Box::new(left),
+                operator: Token::Or,
+                right: Box::new(right),
+            };
         }
         Ok(left)
     }
 
     fn parse_logic_and(&mut self) -> Result<Expr, ParseError> {
+        let mut left = self.parse_equality()?;
+
+        while let Some(Token::And) = self.current_token().cloned() {
+            self.eat(Token::And)?;
+            let right = self.parse_equality()?;
+            left = Expr::Logical {
+                left: Box::new(left),
+                operator: Token::And,
+                right: Box::new(right),
+            };
+        }
+        
+        Ok(left)
+    }
+
+    fn parse_equality(&mut self) -> Result<Expr, ParseError> {
         let mut left = self.parse_comparison()?;
 
         while let Some(tok) = self.current_token().cloned() {
-            if tok == Token::And {
-                self.pos += 1;
+            if tok == Token::Equals || tok == Token::NotEquals {
+                self.eat(tok.clone())?;
                 let right = self.parse_comparison()?;
-                left = Expr::Logical {
+                left = Expr::Binary {
                     left: Box::new(left),
-                    operator: tok,
+                    op: tok,
                     right: Box::new(right),
                 };
             } else {
@@ -653,29 +663,19 @@ impl Parser {
     }
 
     fn parse_comparison(&mut self) -> Result<Expr, ParseError> {
-        // 1. Get the left side (Math level: 5 + 5)
         let mut left = self.parse_expr()?; 
 
-        // 2. Check for comparison operators
         if let Some(tok) = self.current_token().cloned() {
-            match tok {
-                Token::Equals | Token::NotEquals | Token::Greater | 
-                Token::Lesser | Token::GreaterEquals | Token::LesserEquals => {
-                    self.pos += 1;
-                    // 3. Get the right side
-                    let right = self.parse_expr()?;
-                    
-                    // 4. Return the Binary Node (NOT the result)
-                    return Ok(Expr::Binary {
-                        left: Box::new(left),
-                        op: tok,
-                        right: Box::new(right),
-                    });
-                }
-                _ => {}
+            if matches!(tok, Token::Greater | Token::Lesser | Token::GreaterEquals | Token::LesserEquals) {
+                self.eat(tok.clone())?;
+                let right = self.parse_expr()?;
+                left = Expr::Binary {
+                    left: Box::new(left),
+                    op: tok,
+                    right: Box::new(right),
+                };
             }
         }
-        // If no operator, just return the math expression (e.g., "if (x)")
         Ok(left)
     }
 

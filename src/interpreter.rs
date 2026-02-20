@@ -146,7 +146,7 @@ impl Interpreter {
 
                 let is_true = match evaluated_cond {
                     Token::Boolean(b) => b,
-                    _ => panic!("Runtime Error: 'if' koşulu boolean olmalı! Bulunan: {:?}", evaluated_cond),
+                    _ => panic!("Runtime Error: 'if' statement needs to be boolean! Found: {:?}", evaluated_cond),
                 };
 
                 if is_true {
@@ -229,6 +229,7 @@ impl Interpreter {
 
             Expr::Binary { left, op, right } => {
                 let left = self.evaluate(*left);
+
                 let right = self.evaluate(*right);
 
                 if op == Token::Equals {
@@ -272,6 +273,40 @@ impl Interpreter {
                     (op, val) => panic!("Runtime Error: {:?} operator cannot used with {:?} .", op, val),
                     
                 }
+            }
+
+            Expr::Logical { left, operator, right } => {
+                let left = self.evaluate(*left);
+
+                if operator == Token::Or {
+                    if let Token::Boolean(b) = left {
+                        if b {
+                            return Token::Boolean(true);
+                        }
+                    } else {
+                        panic!("Runtime Error: 'or' operator's left needs to be Boolean!");
+                    }
+                }
+                else if operator == Token::And {
+                    if let Token::Boolean(b) = left {
+                        if !b { 
+                            return Token::Boolean(false);
+                        }
+                        
+                    } else {
+                     
+                        panic!("Runtime Error: 'and' operator's left needs to be Boolean!");
+                    }
+                }
+                let right = self.evaluate(*right);
+
+                if let Token::Boolean(b) = right {
+                    return Token::Boolean(b);
+                } else {
+                    panic!("Runtime Error: 'and'/'or' operator's right needs to be Boolean!");
+
+                }
+
             }
 
             Expr::Assign { name, value } => {

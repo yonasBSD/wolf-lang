@@ -25,3 +25,16 @@ for int i = 0 range 2
     end
 end
 print "end"
+
+let value : int = 10
+
+if value > 10 or value == 10
+    print "text"
+end
+
+if value == 10 and value > 10
+    print true
+end
+else
+    print false
+end
