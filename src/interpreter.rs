@@ -1,6 +1,8 @@
 use core::panic;
 use std::{collections::HashMap, io::IsTerminal};
 use crate::{ast::{Expr, LiteralValue, Stmt}, error_handler::ParseError, tokens::{self, Token}};
+use std::rc::Rc;
+use std::cell::RefCell;
 
 
 #[derive(Debug, Clone, PartialEq)]
@@ -13,14 +15,14 @@ pub struct Function {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Interpreter {
     pub scopes: Vec<HashMap<String, Token>>,
-    pub functions: HashMap<String, Function>,
+    pub functions: Rc<RefCell<HashMap<String, Function>>>,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
         Interpreter {
             scopes: vec![HashMap::new()],
-            functions: HashMap::new(),
+            functions: Rc::new(RefCell::new(HashMap::new())),
         }
     }
     pub fn interpret(&mut self, statements: Vec<Stmt>) -> Result<(), ParseError> {
@@ -209,6 +211,21 @@ impl Interpreter {
                 Ok(())
             }
 
+            Stmt::Func { name, params, body } => {
+                let func = Function {name: name.clone(), params, body};
+                self.functions.borrow_mut().insert(name, func);
+                Ok(())
+            }
+
+            Stmt::Return { keyword, value } => {
+                let return_val = match value {
+                    Some(expr) => self.evaluate(expr),
+                    None => Token::Unknown,
+                };
+
+                Err(ParseError::Return { value: return_val })
+            }
+
             _ => Ok(())
         }
     }
@@ -362,6 +379,59 @@ impl Interpreter {
 
                 Token::List(evaluated_list)
                 
+            }
+
+            Expr::Call { callee, paren, arguments } => {
+                let name = match *callee {
+                    Expr::Variable(ref n) => n.clone(),
+                    _ => panic!("Runtime Error: Callee must be a named function!"),
+                };
+
+                let evaluated_args: Vec<Token> = arguments
+                .into_iter()
+                .map(|arg| self.evaluate(arg))
+                .collect();
+                
+                if let Some(result) = crate::native_functions::dispatch(&name, evaluated_args.clone()) {
+                    return result.unwrap_or(Token::Unknown);
+                }
+
+                let func = self.functions.borrow().get(&name).cloned();
+
+                let func = match func {
+                    Some(f) => f,
+                    None => panic!("Runtime Error: Undefined function '{}'", name),
+                };
+
+                if func.params.len() != evaluated_args.len() {
+                    panic!(
+                        "Runtime Error: Function '{}' expects {} args but got {}",
+                        name, func.params.len(), evaluated_args.len()
+                    );
+                }
+
+                let mut call_scope = HashMap::new();
+                for ((param_name, _param_type), arg_val) in func.params.iter().zip(evaluated_args) {
+                    call_scope.insert(param_name.clone(), arg_val);
+                }
+                self.scopes.push(call_scope);
+
+                let mut return_value = Token::Unknown;
+                for stmt in func.body {
+                    match self.execute(stmt) {
+                        Ok(_) => {}
+                        Err(ParseError::Return { value }) => {
+                            return_value = value;
+                            break;
+                        }
+                        Err(e) => {
+                            self.scopes.pop();
+                            return Token::Unknown; // or panic
+                        }
+                    }
+                }
+                self.scopes.pop();
+                return_value
             }
 
             _ => Token::Unknown,

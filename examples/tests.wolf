@@ -38,3 +38,6 @@ end
 else
     print false
 end
+
+let name: string = input("Enter your name: ")
+print name

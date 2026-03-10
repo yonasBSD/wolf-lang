@@ -407,9 +407,6 @@ impl Parser {
         // We reuse the parse_block() helper to recursively parse statements inside the function
         let body = self.parse_block()?;
 
-        // 5. Consume 'end'
-        self.eat(Token::EndOfCondition)?;
-
         Ok(Stmt::Func {
             name,
             params,
