@@ -7,16 +7,20 @@ pub mod native_functions;
 pub mod ast;
 pub mod interpreter;
 
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use parser::Parser;
 use lexer::lexer;
 use tokens::Token;
 
+
 use crate::{ast::Stmt, interpreter::{Function, Interpreter}};
+
+pub type NativeFn = Rc<dyn Fn(Vec<Token>) -> Token>;
 
 pub struct WolfEngine {
     globals: HashMap<String, Token>,
-    functions: HashMap<String, Function>,
+    native_fns: Rc<RefCell<HashMap<String, NativeFn>>>,
+    functions: Rc<RefCell<HashMap<String, Function>>>,
     interpreter: Interpreter
 }
 
@@ -24,7 +28,8 @@ impl WolfEngine {
     pub fn new() -> Self {
         WolfEngine {
             globals: HashMap::new(),
-            functions: HashMap::new(),
+            functions: Rc::new(RefCell::new(HashMap::new())),
+            native_fns: Rc::new(RefCell::new(HashMap::new())),
             interpreter: Interpreter::new()
         }
     }
@@ -57,6 +62,14 @@ impl WolfEngine {
         if let Some(scope) = self.interpreter.scopes.first_mut() {
             scope.insert(name.to_string(), Token::List(value));
         }
+    }
+
+    pub fn push_fn<F>(&mut self, name: &str, func: F)
+    where
+        F: Fn(Vec<Token>) -> Token + 'static,
+    {
+        let wrapped = Rc::new(func);
+        self.interpreter.native_fns.borrow_mut().insert(name.to_string(), wrapped);
     }
 
     
@@ -161,6 +174,41 @@ impl WolfEngine {
         }
         None
     }
+
+    pub fn get_fn(&mut self, name: &str, args: Vec<Token>) -> Option<Token> {
+        let func = self.interpreter.functions.borrow().get(name).cloned()?;
+
+        if func.params.len() != args.len() {
+            panic!(
+                "WolfEngine: Function '{}' expects {} args but got {}",
+                name, func.params.len(), args.len()
+            );
+        }
+
+        let mut call_scope = std::collections::HashMap::new();
+        for ((param_name, _param_type), arg_val) in func.params.iter().zip(args) {
+            call_scope.insert(param_name.clone(), arg_val);
+        }
+        self.interpreter.scopes.push(call_scope);
+
+        let mut return_value = Token::Unknown;
+        for stmt in func.body {
+            match self.interpreter.execute(stmt) {
+                Ok(_) => {}
+                Err(crate::error_handler::ParseError::Return { value }) => {
+                    return_value = value;
+                    break;
+                }
+                Err(_) => {
+                    self.interpreter.scopes.pop();
+                    return Some(Token::Unknown);
+                }
+            }
+        }
+
+        self.interpreter.scopes.pop();
+        Some(return_value)
+    }
     
 }
 
@@ -218,5 +266,41 @@ mod test
         engine.run("print variable[0]");
         let value = engine.get_list("variable");
         println!("{:?}", value);
+    }
+
+    #[test]
+    fn test_push_fn_print() {
+        let mut engine = WolfEngine::new();
+
+        engine.push_fn("add", |args| {
+            if let (Some(Token::Integer(a)), Some(Token::Integer(b))) = (args.get(0), args.get(1)) {
+                Token::Integer(a + b)
+            } else {
+                Token::Unknown
+            }
+        });
+
+        engine.run(r#"
+            let result: int = add(10, 20)
+            print result
+        "#).unwrap();
+
+        let value = engine.get_int("result");
+        assert_eq!(value, Some(30));
+    }
+
+    #[test]
+    fn test_get_fn() {
+        let mut engine = WolfEngine::new();
+
+        engine.run(r#"
+            fn add(x: int, y: int)
+                return x + y
+            end
+        "#).unwrap();
+
+        let result = engine.get_fn("add", vec![Token::Integer(10), Token::Integer(20)]);
+        assert_eq!(result, Some(Token::Integer(30)));
+        println!("{:?}", result);
     }
 }

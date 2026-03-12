@@ -1,6 +1,6 @@
 use core::panic;
 use std::{collections::HashMap, io::IsTerminal};
-use crate::{ast::{Expr, LiteralValue, Stmt}, error_handler::ParseError, tokens::{self, Token}};
+use crate::{NativeFn, ast::{Expr, LiteralValue, Stmt}, error_handler::ParseError, tokens::{self, Token}};
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -12,10 +12,28 @@ pub struct Function {
     pub body: Vec<Stmt>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone)]
 pub struct Interpreter {
     pub scopes: Vec<HashMap<String, Token>>,
     pub functions: Rc<RefCell<HashMap<String, Function>>>,
+    pub native_fns: Rc<RefCell<HashMap<String, NativeFn>>>,
+}
+
+impl std::fmt::Debug for Interpreter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Interpreter")
+            .field("scopes", &self.scopes)
+            .field("functions", &self.functions)
+            .field("native_fns", &"<native functions>") 
+            .finish()
+    }
+}
+
+impl PartialEq for Interpreter {
+    fn eq(&self, other: &Self) -> bool {
+        self.scopes == other.scopes &&
+        self.functions == other.functions
+    }
 }
 
 impl Interpreter {
@@ -23,6 +41,7 @@ impl Interpreter {
         Interpreter {
             scopes: vec![HashMap::new()],
             functions: Rc::new(RefCell::new(HashMap::new())),
+            native_fns: Rc::new(RefCell::new(HashMap::new())),
         }
     }
     pub fn interpret(&mut self, statements: Vec<Stmt>) -> Result<(), ParseError> {
@@ -32,7 +51,7 @@ impl Interpreter {
         Ok(())
     }
 
-    fn execute(&mut self, stmt: Stmt) -> Result<(), ParseError> {
+    pub fn execute(&mut self, stmt: Stmt) -> Result<(), ParseError> {
         match stmt {
             Stmt::Expression(expr) => {
                 self.evaluate(expr);
@@ -394,6 +413,10 @@ impl Interpreter {
                 
                 if let Some(result) = crate::native_functions::dispatch(&name, evaluated_args.clone()) {
                     return result.unwrap_or(Token::Unknown);
+                }
+
+                if let Some(func) = self.native_fns.borrow().get(&name).cloned() {
+                    return func(evaluated_args);
                 }
 
                 let func = self.functions.borrow().get(&name).cloned();
