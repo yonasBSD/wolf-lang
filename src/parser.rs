@@ -660,7 +660,7 @@ impl Parser {
     }
 
     fn parse_comparison(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_expr()?; 
+        let mut left = self.parse_term()?; 
 
         if let Some(tok) = self.current_token().cloned() {
             if matches!(tok, Token::Greater | Token::Lesser | Token::GreaterEquals | Token::LesserEquals) {
