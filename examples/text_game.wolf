@@ -16,7 +16,7 @@ let inventory: list<string> = ["Potion", "Potion", "Bomb"]
 
 # RECURSION TEST: Calculates magic damage based on charge level
 # Sums all numbers from n down to 1 (e.g. 5+4+3+2+1 = 15)
-fn charge_magic(n)
+fn charge_magic(n: int)
     if n <= 1
         return 1
     end
@@ -25,7 +25,7 @@ fn charge_magic(n)
     return n + charge_magic(n - 1) 
 end
 
-fn show_hud(p_hp, e_hp)
+fn show_hud(p_hp: int, e_hp: int)
     print "=================================="
     print " PLAYER HP: ", p_hp, " | ENEMY HP: ", e_hp
     print "=================================="

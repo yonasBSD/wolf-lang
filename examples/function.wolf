@@ -1,8 +1,8 @@
-fn calc(x, y)
+fn calc(x: int, y: int)
     print x + y
 end
 
-fn calcR(x, y)
+fn calcR(x: int, y: int)
     return x + y
 end
 

@@ -60,6 +60,7 @@ pub enum Token {
     Comma,
     Colon,
     Return,
+    Bang,
     Unknown,
     EOF,
 }

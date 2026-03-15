@@ -1,9 +1,43 @@
-let x : int = 10
-let y : int = 15
+let x: int = 10
+let y: list<list<int>> = [[1,1,1,1], [2,2,2,2]]
+let z: list<int> = [1,1,1,1]
 
-if x < y and y > x
-    print "aaa"
+if x > 5
+    print "x 5'ten büyük"
+    let local: int = 100
+    print local
 end
-else 
-    print "bbb"
+else
+    print "x 5'ten küçük veya eşit"
 end
+
+
+while x > 5
+    print x
+    x = x - 1
+end
+
+y[1][1] = 0
+
+for int i = 0 range 2
+    for int j = 0 range 4
+        print y[i][j]
+    end
+end
+print "end"
+
+let value : int = 10
+
+if value > 10 or value == 10
+    print "text"
+end
+
+if value == 10 and value > 10
+    print true
+end
+else
+    print false
+end
+
+let name: string = input("Enter your name: ")
+print name

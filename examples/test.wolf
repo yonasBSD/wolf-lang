@@ -1,1 +1,1 @@
-print "int"
+print "Numbers:", 12, 56, 31, 42
