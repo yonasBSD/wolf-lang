@@ -1,1 +1,9 @@
-print "Numbers:", 12, 56, 31, 42
+import "examples/import_test.wolf"
+
+let add : int = add(1,2)
+
+print add
+
+fn close(a: int, b: int)
+    return a - b
+end

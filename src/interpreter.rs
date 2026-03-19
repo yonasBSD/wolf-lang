@@ -1,5 +1,5 @@
 use core::panic;
-use std::{collections::HashMap, io::IsTerminal};
+use std::{collections::{HashMap, HashSet}, io::IsTerminal};
 use crate::{NativeFn, ast::{Expr, LiteralValue, Stmt}, error_handler::ParseError, lexer, parser::Parser, tokens::{self, Token}};
 use std::rc::Rc;
 use std::fs;
@@ -18,6 +18,7 @@ pub struct Interpreter {
     pub scopes: Vec<HashMap<String, Token>>,
     pub functions: Rc<RefCell<HashMap<String, Function>>>,
     pub native_fns: Rc<RefCell<HashMap<String, NativeFn>>>,
+    pub loaded_modules: HashSet<String>,
 }
 
 impl std::fmt::Debug for Interpreter {
@@ -43,11 +44,26 @@ impl Interpreter {
             scopes: vec![HashMap::new()],
             functions: Rc::new(RefCell::new(HashMap::new())),
             native_fns: Rc::new(RefCell::new(HashMap::new())),
+            loaded_modules: HashSet::new(),
         }
     }
     pub fn interpret(&mut self, statements: Vec<Stmt>) -> Result<(), ParseError> {
+        for stmt in &statements {
+            if let Stmt::Func { name, params, body } = stmt {
+                let func = Function { 
+                    name: name.clone(), 
+                    params: params.clone(), 
+                    body: body.clone() 
+                };
+                self.functions.borrow_mut().insert(name.clone(), func);
+            }
+        }
         for stmt in statements {
-            self.execute(stmt)?;
+            match stmt {
+                Stmt::Func { .. } => {} 
+                
+                _ => self.execute(stmt)?,
+            }
         }
         Ok(())
     }
@@ -247,6 +263,11 @@ impl Interpreter {
             }
 
             Stmt::Import { directory } => {
+                if self.loaded_modules.contains(&directory) {
+                    return Ok(())
+                }
+                self.loaded_modules.insert(directory.clone());
+
                 let import_directory = fs::read_to_string(directory).unwrap();
 
                 let tokens = match lexer::lexer(&import_directory) {
@@ -254,12 +275,9 @@ impl Interpreter {
                     Err(e) => panic!("aaa"),
                 };
 
-                // 2. Initialize Parser
                 let mut parser = Parser::new(tokens);
                 let mut ast_tree: Vec<Stmt> = Vec::new();
 
-                // 3. Loop and build the AST
-                // We keep calling parse_statement() until we hit EOF
                 while parser.current_token().is_some() && *parser.current_token().unwrap() != Token::EOF {
                     match parser.parse_statement() {
                         Ok(stmt) => ast_tree.push(stmt),

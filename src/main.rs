@@ -33,9 +33,9 @@ fn run_file(path: &str) {
         }
     };
     
-    let mut Engine = WolfEngine::new();
-
-    if let Err(e) = Engine.run(&content) {
+    let mut engine = WolfEngine::new();
+    engine.register_module(path);
+    if let Err(e) = engine.run(&content) {
         eprintln!("{}", e);
     }
 

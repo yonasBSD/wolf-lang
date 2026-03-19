@@ -3,12 +3,12 @@ let y: list<list<int>> = [[1,1,1,1], [2,2,2,2]]
 let z: list<int> = [1,1,1,1]
 
 if x > 5
-    print "x 5'ten büyük"
+    print "x is greater than 5"
     let local: int = 100
     print local
 end
 else
-    print "x 5'ten küçük veya eşit"
+    print "x is lesser than 5"
 end
 
 

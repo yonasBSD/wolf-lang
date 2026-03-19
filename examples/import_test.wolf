@@ -1,5 +1,9 @@
-import "examples/math.wolf"
+import "examples/test.wolf"
 
-let add : int = add(1, 3)
+fn add(a: int, b: int)
+    return a + b
+end
 
-print add
+let close : int = close(5, 2)
+
+print close
