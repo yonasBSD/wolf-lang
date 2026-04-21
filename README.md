@@ -118,7 +118,7 @@ Functions & Recursion
 
 ```rust
 
-fn fibonacci(n)
+fn fibonacci(n: int)
    if n <= 1
       return n
    end
