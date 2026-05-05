@@ -55,10 +55,14 @@ pub enum Expr {
         method: String,
         args: Vec<Expr>,
     },
-
     FieldGet {
         object: Box<Expr>,
         field: String,
+    },
+    FieldSet {
+        object: Box<Expr>,
+        field: String,
+        value: Box<Expr>,
     }
 
 }

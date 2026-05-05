@@ -324,10 +324,14 @@ impl Interpreter {
                 self.namespaces.insert(identifier.clone(), module_fns);
 
                 for (name, fields) in sub.struct_defs {
-                    self.struct_defs.insert(name, fields);
+                    let namespaced = format!("{}::{}", identifier, name); // e.g. "math::Vector2"
+                    self.struct_defs.insert(namespaced, fields);
                 }
+
+                // Impl methods → same namespaced key
                 for (name, methods) in sub.impl_defs {
-                    self.impl_defs.insert(name, methods);
+                    let namespaced = format!("{}::{}", identifier, name);
+                    self.impl_defs.insert(namespaced, methods);
                 }
 
                 Ok(())
@@ -489,6 +493,19 @@ impl Interpreter {
                         .collect();
                     return Token::StructInstance { type_name: name, fields: instance_fields };
                 }
+                let (lookup_name, ns_name) = if name.contains("::") {
+                    let parts: Vec<&str> = name.splitn(2, "::").collect();
+                    (parts[1].to_string(), Some(parts[0].to_string()))
+                } else {
+                    (name.clone(), None)
+                };
+
+                if let Some(fields) = self.struct_defs.get(&lookup_name).cloned() {
+                    let instance_fields = fields.iter().zip(evaluated_args)
+                        .map(|((field_name, _), val)| (field_name.clone(), val))
+                        .collect();
+                    return Token::StructInstance { type_name: lookup_name, fields: instance_fields };
+                }
                 
                 if let Some(result) = crate::native_functions::dispatch(&name, evaluated_args.clone()) {
                     return result.unwrap_or(Token::Unknown);
@@ -631,6 +648,15 @@ impl Interpreter {
                             }
                         }
                     }
+
+                    if let Some(updated_self) = self.scopes.last().and_then(|s| s.get("self")).cloned() {
+                        for scope in self.scopes.iter_mut().rev() {
+                            if scope.contains_key(&obj_name) {
+                                scope.insert(obj_name.clone(), updated_self);
+                                break;
+                            }
+                        }
+                    }
                     self.scopes.pop();
                     return return_value;
                 }
@@ -683,6 +709,24 @@ impl Interpreter {
                 }
             }
 
+            Expr::FieldSet { object, field, value } => {
+                let new_val = self.evaluate(*value);
+                let obj_name = match *object {
+                    Expr::Variable(ref name) => name.clone(),
+                    _ => panic!("Runtime Error: field set on non-variable"),
+                };
+
+                for scope in self.scopes.iter_mut().rev() {
+                    if let Some(Token::StructInstance { fields, .. }) = scope.get_mut(&obj_name) {
+                        if let Some(f) = fields.iter_mut().find(|(name, _)| name == &field) {
+                            f.1 = new_val.clone();
+                            return new_val;
+                        }
+                    }
+                }
+                panic!("Runtime Error: field '{}' not found on '{}'", field, obj_name);
+            }
+
             Expr::FieldGet { object, field } => {
                 let obj = self.evaluate(*object);
                 if let Token::StructInstance { fields, .. } = obj {
@@ -694,6 +738,7 @@ impl Interpreter {
                     panic!("Runtime Error: field access on non-struct value")
                 }
             }
+
 
             _ => Token::Unknown,
         }

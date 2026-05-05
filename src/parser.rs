@@ -151,6 +151,13 @@ impl Parser {
 
                 Token::Identifier(name) => {
                     self.pos += 1;
+                    if self.check(Token::DoubleColon) {
+                        self.eat(Token::DoubleColon)?;
+                        if let Some(Token::Identifier(type_name)) = self.current_token().cloned() {
+                            self.pos += 1;
+                            return Ok(Token::Identifier(format!("{}::{}", name, type_name)));
+                        }
+                    }
                     Ok(Token::Identifier(name))
                 }
 
@@ -593,7 +600,33 @@ impl Parser {
             // --- 2. Identifiers (Variables, Calls, Lists) ---
             Token::Identifier(name) => {
                 self.pos += 1; // Consume the identifier name immediately
-
+                
+                if self.check(Token::DoubleColon) {
+                    self.eat(Token::DoubleColon)?;
+                    if let Some(Token::Identifier(fn_name)) = self.current_token().cloned() {
+                        self.pos += 1;
+                        self.eat(Token::LParen)?;
+                        let mut args = Vec::new();
+                        if !self.check(Token::RParen) {
+                            loop {
+                                args.push(self.parse_expr()?);
+                                if self.check(Token::Comma) {
+                                    self.eat(Token::Comma)?;
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+                        self.eat(Token::RParen)?;
+                        // Pass as a regular Call with "namespace::name" as callee
+                        return Ok(Expr::Call {
+                            callee: Box::new(Expr::Variable(format!("{}::{}", name, fn_name))),
+                            paren: Token::LParen,
+                            arguments: args,
+                        });
+                    }
+                }
+                
                 if self.check(Token::LParen) {
                     // It is a Function Call: run()
                     self.parse_call_expr(name)
@@ -782,6 +815,15 @@ impl Parser {
         };
 
         if !self.check(Token::LParen) {
+            if self.check(Token::Assign) {
+                self.eat(Token::Assign)?;
+                let value = self.parse_expr()?;
+                return Ok(Expr::FieldSet {
+                    object: Box::new(Expr::Variable(var_name)),
+                    field: method_name,
+                    value: Box::new(value),
+                });
+            }
             return Ok(Expr::FieldGet {
                 object: Box::new(Expr::Variable(var_name)),
                 field: method_name,

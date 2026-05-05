@@ -1,3 +1,28 @@
+struct Vector2
+    x: int
+    y: int
+end
+
+impl Vector2
+    fn get_x()
+        return self.x
+    end
+
+    fn get_y()
+        return self.y
+    end
+    
+    fn move_x(value: int)
+        self.x = self.x + value
+        return self.x
+    end
+
+    fn move_y(value: int)
+        self.y = self.y + value
+        return self.y
+    end
+end
+
 fn add(x: int, y: int)
     return x + y
 end

@@ -1,0 +1,9 @@
+import "examples/math.wolf" as m
+
+let v: m::Vector2 = m::Vector2(2, 2)
+
+print v.x
+v.y = v.y + 4
+print v.get_y()
+
+print m.add(3, 2)

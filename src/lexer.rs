@@ -158,7 +158,16 @@ pub fn lexer(content: &str) -> Result<Vec<Token>, String> {
             '[' => { token.push(Token::LBracket); i += 1; continue; }
             ']' => { token.push(Token::RBracket); i += 1; continue; }
             ',' => { token.push(Token::Comma); i += 1; continue; }
-            ':' => { token.push(Token::Colon); i += 1; continue; }
+            ':' => {
+                if i + 1 < chars.len() && chars[i + 1] == ':' {
+                    token.push(Token::DoubleColon);
+                    i += 2;
+                } else {
+                    token.push(Token::Colon);
+                    i += 1;
+                }
+                continue;
+            }
             '.' => { token.push(Token::Dot); i += 1; continue; }
             _ => {}
         }

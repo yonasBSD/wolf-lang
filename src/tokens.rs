@@ -50,6 +50,7 @@ pub enum Token {
     NotEquals,
     And,
     Or,
+    DoubleColon,
 
     //Functions
     Func,
